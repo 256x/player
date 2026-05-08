@@ -1,5 +1,8 @@
 package fumi.day.literalplayer.data.repository
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import fumi.day.literalplayer.data.cache.TrackCache
 import fumi.day.literalplayer.data.db.dao.TrackPositionDao
 import fumi.day.literalplayer.data.db.entity.TrackPositionEntity
 import fumi.day.literalplayer.data.media.MediaScanner
@@ -8,19 +11,26 @@ import fumi.day.literalplayer.domain.model.Track
 import fumi.day.literalplayer.domain.model.displayAlbum
 import fumi.day.literalplayer.domain.model.displayArtist
 import fumi.day.literalplayer.domain.model.displayTitle
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class TrackRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val scanner: MediaScanner,
     private val positionDao: TrackPositionDao,
 ) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     private var cachedTracks: List<Track> = emptyList()
     private val _cachedTracksFlow = MutableStateFlow<List<Track>>(emptyList())
     val cachedTracksFlow: StateFlow<List<Track>> = _cachedTracksFlow.asStateFlow()
@@ -31,6 +41,8 @@ class TrackRepository @Inject constructor(
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
+    private var lastFolders: Set<String> = emptySet()
+
     fun triggerRescan() { _rescanTrigger.tryEmit(Unit) }
 
     var currentPlaylist: List<Track> = emptyList()
@@ -38,17 +50,41 @@ class TrackRepository @Inject constructor(
 
     fun setPlaylist(tracks: List<Track>) { currentPlaylist = tracks }
 
+    /** 起動時: キャッシュが有効なら即返し、なければフルスキャン */
     suspend fun loadTracks(rootFolders: Set<String>): List<Track> {
-        _isScanning.value = true
-        cachedTracks = scanner.scan(rootFolders)
-        _cachedTracksFlow.value = cachedTracks
-        _isScanning.value = false
-        return cachedTracks
+        lastFolders = rootFolders
+        val cached = TrackCache.load(context, rootFolders)
+        if (cached != null) {
+            cachedTracks = cached
+            _cachedTracksFlow.value = cached
+            return cached
+        }
+        return fullScan(rootFolders)
     }
 
+    /** Rescan ボタン: キャッシュを無視して常にフルスキャン */
+    suspend fun rescanTracks(rootFolders: Set<String>): List<Track> {
+        lastFolders = rootFolders
+        return fullScan(rootFolders)
+    }
+
+    private suspend fun fullScan(rootFolders: Set<String>): List<Track> {
+        _isScanning.value = true
+        val tracks = scanner.scan(rootFolders)
+        cachedTracks = tracks
+        _cachedTracksFlow.value = tracks
+        TrackCache.save(context, rootFolders, tracks)
+        _isScanning.value = false
+        return tracks
+    }
+
+    /** 削除など部分更新: メモリとキャッシュファイルを同時に更新 */
     fun updateCached(tracks: List<Track>) {
         cachedTracks = tracks
         _cachedTracksFlow.value = tracks
+        if (lastFolders.isNotEmpty()) {
+            scope.launch { TrackCache.save(context, lastFolders, tracks) }
+        }
     }
 
     fun getCached(): List<Track> = cachedTracks

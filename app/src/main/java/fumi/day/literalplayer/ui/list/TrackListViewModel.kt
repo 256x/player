@@ -80,7 +80,11 @@ class TrackListViewModel @Inject constructor(
         viewModelScope.launch {
             trackRepository.rescanTrigger.collect {
                 val folders = prefs.value.rootFolders
-                if (folders.isNotEmpty()) loadTracks(folders)
+                if (folders.isNotEmpty()) {
+                    _isLoading.value = true
+                    _tracks.value = trackRepository.rescanTracks(folders)
+                    _isLoading.value = false
+                }
             }
         }
     }
