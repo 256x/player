@@ -1,0 +1,2 @@
+-keep class fumi.day.literalplayer.** { *; }
+-keepattributes *Annotation*
