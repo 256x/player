@@ -18,11 +18,24 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import fumi.day.literalplayer.R
+import fumi.day.literalplayer.data.prefs.AppFont
+import fumi.day.literalplayer.data.prefs.UserPrefs
 import androidx.core.graphics.toColorInt
 import androidx.core.view.WindowCompat
-import fumi.day.literalplayer.data.prefs.UserPrefs
+
+val ScopeOneFamily = FontFamily(Font(R.font.scopeone))
+
+fun AppFont.toFontFamily(): FontFamily = when (this) {
+    AppFont.DEFAULT -> FontFamily.Default
+    AppFont.SERIF -> FontFamily.Serif
+    AppFont.MONOSPACE -> FontFamily.Monospace
+    AppFont.SCOPE_ONE -> ScopeOneFamily
+}
 
 data class AppThemeState(
     val accentColor: Color = Color(0xFF6650A4),
@@ -78,12 +91,14 @@ fun LiteralPlayerTheme(
         }
     }
 
+    val fontFamily = userPrefs.font.toFontFamily()
+    val fs = userPrefs.fontSize
     val typography = Typography(
-        bodyLarge = TextStyle(fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp),
-        bodyMedium = TextStyle(fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 20.sp),
-        bodySmall = TextStyle(fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 16.sp),
-        titleMedium = TextStyle(fontWeight = FontWeight.Medium, fontSize = 16.sp, lineHeight = 24.sp),
-        labelSmall = TextStyle(fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 16.sp),
+        bodyLarge = TextStyle(fontFamily = fontFamily, fontWeight = FontWeight.Normal, fontSize = fs.sp, lineHeight = (fs * 1.5f).sp),
+        bodyMedium = TextStyle(fontFamily = fontFamily, fontWeight = FontWeight.Normal, fontSize = (fs * 0.875f).sp, lineHeight = (fs * 1.4f).sp),
+        bodySmall = TextStyle(fontFamily = fontFamily, fontWeight = FontWeight.Normal, fontSize = (fs * 0.75f).sp, lineHeight = (fs * 1.33f).sp),
+        titleMedium = TextStyle(fontFamily = fontFamily, fontWeight = FontWeight.Medium, fontSize = fs.sp, lineHeight = (fs * 1.5f).sp),
+        labelSmall = TextStyle(fontFamily = fontFamily, fontWeight = FontWeight.Medium, fontSize = (fs * 0.6875f).sp, lineHeight = (fs * 1.45f).sp),
     )
 
     CompositionLocalProvider(LocalAppTheme provides AppThemeState(accentColor = accentColor)) {

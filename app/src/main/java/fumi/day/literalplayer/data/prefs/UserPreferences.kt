@@ -5,6 +5,7 @@ import android.os.Environment
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -14,6 +15,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+
+enum class AppFont { DEFAULT, SERIF, MONOSPACE, SCOPE_ONE }
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_prefs")
 
@@ -25,6 +28,8 @@ data class UserPrefs(
     val accentColorHex: String = "",
     val textColorHex: String = "",
     val backgroundColorHex: String = "",
+    val font: AppFont = AppFont.DEFAULT,
+    val fontSize: Float = 16f,
 )
 
 @Singleton
@@ -36,6 +41,8 @@ class UserPreferences @Inject constructor(private val context: Context) {
     private val accentColorKey = stringPreferencesKey("accent_color")
     private val textColorKey = stringPreferencesKey("text_color")
     private val bgColorKey = stringPreferencesKey("bg_color")
+    private val fontKey = stringPreferencesKey("font")
+    private val fontSizeKey = floatPreferencesKey("font_size")
 
     val prefs: Flow<UserPrefs> = context.dataStore.data.map { p ->
         UserPrefs(
@@ -46,6 +53,8 @@ class UserPreferences @Inject constructor(private val context: Context) {
             accentColorHex = p[accentColorKey] ?: "",
             textColorHex = p[textColorKey] ?: "",
             backgroundColorHex = p[bgColorKey] ?: "",
+            font = AppFont.entries.find { it.name == p[fontKey] } ?: AppFont.DEFAULT,
+            fontSize = p[fontSizeKey] ?: 16f,
         )
     }
 
@@ -87,5 +96,13 @@ class UserPreferences @Inject constructor(private val context: Context) {
 
     suspend fun setBackgroundColor(hex: String) {
         context.dataStore.edit { it[bgColorKey] = hex }
+    }
+
+    suspend fun setFont(font: AppFont) {
+        context.dataStore.edit { it[fontKey] = font.name }
+    }
+
+    suspend fun setFontSize(size: Float) {
+        context.dataStore.edit { it[fontSizeKey] = size }
     }
 }

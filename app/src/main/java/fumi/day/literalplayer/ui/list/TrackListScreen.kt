@@ -100,6 +100,7 @@ fun TrackListScreen(
     var showFolderMenu by remember { mutableStateOf(false) }
     var newFavListName by remember { mutableStateOf("") }
     var showNewFavDialog by remember { mutableStateOf(false) }
+    var confirmDeleteTrack by remember { mutableStateOf<Track?>(null) }
     val keyboard = LocalSoftwareKeyboardController.current
 
     val filteredTracks by viewModel.filteredTracks.collectAsState()
@@ -290,6 +291,14 @@ fun TrackListScreen(
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("+ Add to another playlist") }
+                HorizontalDivider()
+                TextButton(
+                    onClick = {
+                        viewModel.hidePlaylistActionSheet()
+                        confirmDeleteTrack = track
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Delete file", color = androidx.compose.ui.graphics.Color(0xFFCF6679)) }
                 Spacer(Modifier.height(32.dp))
             }
         }
@@ -318,6 +327,14 @@ fun TrackListScreen(
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text("♥ ${list.name}") }
                 }
+                HorizontalDivider()
+                TextButton(
+                    onClick = {
+                        viewModel.hideFavoritesSheet()
+                        confirmDeleteTrack = track
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Delete file", color = androidx.compose.ui.graphics.Color(0xFFCF6679)) }
                 Spacer(Modifier.height(32.dp))
             }
         }
@@ -349,6 +366,23 @@ fun TrackListScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showNewFavDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    confirmDeleteTrack?.let { track ->
+        AlertDialog(
+            onDismissRequest = { confirmDeleteTrack = null },
+            title = { Text("Delete file?") },
+            text = { Text(track.displayTitle) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteFile(track)
+                    confirmDeleteTrack = null
+                }) { Text("Delete", color = androidx.compose.ui.graphics.Color(0xFFCF6679)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDeleteTrack = null }) { Text("Cancel") }
             }
         )
     }

@@ -31,6 +31,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,9 +58,12 @@ fun ArtistDetailScreen(
 ) {
     val favoritesLists by viewModel.favoritesLists.collectAsState()
     val favoritesSheetTrack by viewModel.favoritesSheetTrack.collectAsState()
-    val albumMap = viewModel.albumsForArtist(artistName)
+    val albumMap by viewModel.albumMap.collectAsState()
     var newFavListName by remember { mutableStateOf("") }
     var showNewFavDialog by remember { mutableStateOf(false) }
+    var confirmDeleteTrack by remember { mutableStateOf<Track?>(null) }
+
+    LaunchedEffect(artistName) { viewModel.setArtistName(artistName) }
 
     Scaffold(
         topBar = {
@@ -136,6 +140,11 @@ fun ArtistDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text("♥ ${list.name}") }
                 }
+                HorizontalDivider()
+                TextButton(
+                    onClick = { viewModel.hideFavoritesSheet(); confirmDeleteTrack = track },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Delete file", color = androidx.compose.ui.graphics.Color(0xFFCF6679)) }
                 Spacer(Modifier.height(32.dp))
             }
         }
@@ -158,6 +167,21 @@ fun ArtistDetailScreen(
                 }) { Text("Create") }
             },
             dismissButton = { TextButton(onClick = { showNewFavDialog = false }) { Text("Cancel") } }
+        )
+    }
+
+    confirmDeleteTrack?.let { track ->
+        AlertDialog(
+            onDismissRequest = { confirmDeleteTrack = null },
+            title = { Text("Delete file?") },
+            text = { Text(track.displayTitle) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteFile(track)
+                    confirmDeleteTrack = null
+                }) { Text("Delete", color = androidx.compose.ui.graphics.Color(0xFFCF6679)) }
+            },
+            dismissButton = { TextButton(onClick = { confirmDeleteTrack = null }) { Text("Cancel") } }
         )
     }
 }

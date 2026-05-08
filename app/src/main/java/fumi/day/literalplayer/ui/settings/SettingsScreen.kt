@@ -1,11 +1,14 @@
 package fumi.day.literalplayer.ui.settings
 
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Slider
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -65,8 +68,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlin.math.roundToInt
+import fumi.day.literalplayer.data.prefs.AppFont
 import fumi.day.literalplayer.ui.theme.parseColor
 import fumi.day.literalplayer.util.safUriToPath
 
@@ -85,10 +91,18 @@ fun SettingsScreen(
     var shortSkipText by remember(state.shortSkipSec) { mutableStateOf(state.shortSkipSec.toString()) }
     var longSkipText by remember(state.longSkipSec) { mutableStateOf(state.longSkipSec.toString()) }
     var showColorPicker by remember { mutableStateOf<ColorPickerTarget?>(null) }
+    val context = LocalContext.current
 
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
-    ) { uri -> uri?.let { safUriToPath(it) }?.let { viewModel.scanAndShowSubfolders(it) } }
+    ) { uri ->
+        uri?.let {
+            context.contentResolver.takePersistableUriPermission(
+                it, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            safUriToPath(it)?.let { path -> viewModel.scanAndShowSubfolders(path) }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -173,6 +187,41 @@ fun SettingsScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(16.dp))
+
+            SectionHeader("Font")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    AppFont.DEFAULT to "Default",
+                    AppFont.SERIF to "Serif",
+                    AppFont.MONOSPACE to "Mono",
+                    AppFont.SCOPE_ONE to "Scope",
+                ).forEach { (font, label) ->
+                    FilterChip(
+                        selected = state.font == font,
+                        onClick = { viewModel.setFont(font) },
+                        label = { Text(label) },
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Size", style = MaterialTheme.typography.bodyMedium)
+                Slider(
+                    value = state.fontSize,
+                    onValueChange = viewModel::setFontSize,
+                    valueRange = 12f..24f,
+                    steps = 5,
+                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                )
+                Text("${state.fontSize.roundToInt()}sp", style = MaterialTheme.typography.bodyMedium)
+            }
 
             Spacer(Modifier.height(16.dp))
             HorizontalDivider()

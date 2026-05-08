@@ -2,8 +2,11 @@ package fumi.day.literalplayer.ui.list
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import fumi.day.literalplayer.data.prefs.UserPreferences
+import fumi.day.literalplayer.util.deleteAudioFile
 import fumi.day.literalplayer.data.repository.FavoritesRepository
 import fumi.day.literalplayer.data.repository.TrackRepository
 import fumi.day.literalplayer.domain.model.FavoritesList
@@ -23,6 +26,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class TrackListViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val trackRepository: TrackRepository,
     private val favoritesRepository: FavoritesRepository,
     private val userPreferences: UserPreferences,
@@ -144,5 +148,15 @@ class TrackListViewModel @Inject constructor(
     fun removeFromCurrentPlaylist(trackId: String) {
         val listId = _selectedPlaylistId.value ?: return
         viewModelScope.launch { favoritesRepository.removeTrack(listId, trackId) }
+    }
+
+    fun deleteFile(track: Track) {
+        viewModelScope.launch {
+            deleteAudioFile(context, track.path)
+            val updated = _tracks.value.filter { it.id != track.id }
+            _tracks.value = updated
+            trackRepository.updateCached(updated)
+            trackRepository.setPlaylist(trackRepository.currentPlaylist.filter { it.id != track.id })
+        }
     }
 }

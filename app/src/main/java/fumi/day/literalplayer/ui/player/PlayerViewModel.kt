@@ -132,7 +132,7 @@ class PlayerViewModel @Inject constructor(
                         trackRepository.savePosition(_state.value.track?.id ?: return@let, c.currentPosition)
                     }
                 }
-                delay(500)
+                delay(100)
             }
         }
     }

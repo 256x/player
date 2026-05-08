@@ -3,6 +3,7 @@ package fumi.day.literalplayer.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import fumi.day.literalplayer.data.prefs.AppFont
 import fumi.day.literalplayer.data.prefs.UserPreferences
 import fumi.day.literalplayer.data.repository.TrackRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,5 +73,7 @@ class SettingsViewModel @Inject constructor(
     fun setAccentColor(hex: String) { viewModelScope.launch { prefs.setAccentColor(hex) } }
     fun setTextColor(hex: String) { viewModelScope.launch { prefs.setTextColor(hex) } }
     fun setBackgroundColor(hex: String) { viewModelScope.launch { prefs.setBackgroundColor(hex) } }
+    fun setFont(font: AppFont) { viewModelScope.launch { prefs.setFont(font) } }
+    fun setFontSize(size: Float) { viewModelScope.launch { prefs.setFontSize(size.coerceIn(12f, 24f)) } }
     fun rescan() { trackRepository.triggerRescan() }
 }

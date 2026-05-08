@@ -22,6 +22,8 @@ class TrackRepository @Inject constructor(
     private val positionDao: TrackPositionDao,
 ) {
     private var cachedTracks: List<Track> = emptyList()
+    private val _cachedTracksFlow = MutableStateFlow<List<Track>>(emptyList())
+    val cachedTracksFlow: StateFlow<List<Track>> = _cachedTracksFlow.asStateFlow()
 
     private val _rescanTrigger = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val rescanTrigger: SharedFlow<Unit> = _rescanTrigger
@@ -39,8 +41,14 @@ class TrackRepository @Inject constructor(
     suspend fun loadTracks(rootFolders: Set<String>): List<Track> {
         _isScanning.value = true
         cachedTracks = scanner.scan(rootFolders)
+        _cachedTracksFlow.value = cachedTracks
         _isScanning.value = false
         return cachedTracks
+    }
+
+    fun updateCached(tracks: List<Track>) {
+        cachedTracks = tracks
+        _cachedTracksFlow.value = tracks
     }
 
     fun getCached(): List<Track> = cachedTracks
