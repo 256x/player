@@ -81,7 +81,7 @@ private val TABS = listOf("Artist", "Album", "All", "Playlist")
 fun TrackListScreen(
     onTrackClick: (Track) -> Unit,
     onArtistClick: (String) -> Unit,
-    onAlbumPlay: (List<Track>) -> Unit,
+    onArtistPlay: (List<Track>) -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToPlayer: () -> Unit = {},
     playerViewModel: PlayerViewModel,
@@ -238,8 +238,19 @@ fun TrackListScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             when (selectedTab) {
-                0 -> ArtistTab(sorted, onArtistClick, padding)
-                1 -> AlbumTab(sorted, { tracks -> viewModel.updatePlaylist(tracks); onAlbumPlay(tracks) }, padding)
+                0 -> ArtistTab(
+                    tracks = sorted,
+                    onArtistClick = onArtistClick,
+                    onArtistPlay = { artistTracks -> viewModel.updatePlaylist(artistTracks); onArtistPlay(artistTracks) },
+                    padding = padding,
+                )
+                1 -> AlbumTab(
+                    tracks = sorted,
+                    onTrackClick = { albumTracks, track -> viewModel.updatePlaylist(albumTracks); onTrackClick(track) },
+                    onLongPress = viewModel::showFavoritesSheet,
+                    currentTrackId = playerState.track?.id,
+                    padding = padding,
+                )
                 2 -> AllTab(sorted, { track -> viewModel.updatePlaylist(sorted); onTrackClick(track) },
                     viewModel::showFavoritesSheet, playerState.track?.id, padding)
                 3 -> PlaylistTab(
@@ -392,43 +403,89 @@ fun TrackListScreen(
 private fun ArtistTab(
     tracks: List<Track>,
     onArtistClick: (String) -> Unit,
+    onArtistPlay: (List<Track>) -> Unit,
     padding: androidx.compose.foundation.layout.PaddingValues,
 ) {
-    val artists = tracks.groupBy { it.displayArtist }.keys.sorted()
+    val artistGroups = tracks.groupBy { it.displayArtist }
+    val artists = artistGroups.keys.sorted()
     LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
         items(artists) { artist ->
             Row(
                 modifier = Modifier.fillMaxWidth().clickable { onArtistClick(artist) }
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .padding(start = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(artist, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                Text(">", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                IconButton(onClick = { onArtistPlay(artistGroups[artist] ?: emptyList()) }) {
+                    Icon(
+                        Icons.Default.PlayArrow,
+                        contentDescription = "Play artist",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AlbumTab(
     tracks: List<Track>,
-    onAlbumPlay: (List<Track>) -> Unit,
+    onTrackClick: (albumTracks: List<Track>, track: Track) -> Unit,
+    onLongPress: (Track) -> Unit,
+    currentTrackId: String?,
     padding: androidx.compose.foundation.layout.PaddingValues,
 ) {
-    val albums = tracks.groupBy { it.displayAlbum }
-        .entries.sortedBy { it.key }
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
-        items(albums) { (album, albumTracks) ->
-            Column(
-                modifier = Modifier.fillMaxWidth().clickable { onAlbumPlay(albumTracks) }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-            ) {
-                Text(album, style = MaterialTheme.typography.bodyLarge)
-                Text(albumTracks.first().displayArtist, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+    var selectedAlbumName by remember { mutableStateOf<String?>(null) }
+    val albums = tracks.groupBy { it.displayAlbum }.entries.sortedBy { it.key }
+
+    if (selectedAlbumName == null) {
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+            items(albums) { (album, albumTracks) ->
+                Column(
+                    modifier = Modifier.fillMaxWidth().clickable { selectedAlbumName = album }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                ) {
+                    Text(album, style = MaterialTheme.typography.bodyLarge)
+                    Text(albumTracks.first().displayArtist, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        }
+    } else {
+        val albumTracks = tracks.filter { it.displayAlbum == selectedAlbumName }
+        if (albumTracks.isEmpty()) { selectedAlbumName = null; return }
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { selectedAlbumName = null }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                ) {
+                    Text("← Back", style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            }
+            item {
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Text(selectedAlbumName!!, style = MaterialTheme.typography.titleMedium)
+                    Text(albumTracks.first().displayArtist, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            }
+            items(albumTracks) { track ->
+                TrackRow(
+                    track = track,
+                    isPlaying = track.id == currentTrackId,
+                    onClick = { onTrackClick(albumTracks, track) },
+                    onLongClick = { onLongPress(track) },
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            }
         }
     }
 }

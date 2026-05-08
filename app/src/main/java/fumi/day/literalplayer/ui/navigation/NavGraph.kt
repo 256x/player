@@ -54,7 +54,7 @@ fun NavGraph(
                 onArtistClick = { artistName ->
                     navController.navigate(Routes.artistDetail(artistName))
                 },
-                onAlbumPlay = { tracks ->
+                onArtistPlay = { tracks ->
                     navController.navigate(Routes.player(tracks.first().id))
                 },
                 onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
@@ -76,6 +76,7 @@ fun NavGraph(
                 currentTrackId = playerState.track?.id,
                 onTrackClick = { track -> navController.navigate(Routes.player(track.id)) },
                 onAlbumPlay = { tracks -> navController.navigate(Routes.player(tracks.first().id)) },
+                onArtistPlay = { tracks -> navController.navigate(Routes.player(tracks.first().id)) },
                 onBack = { navController.popBackStack() },
             )
         }

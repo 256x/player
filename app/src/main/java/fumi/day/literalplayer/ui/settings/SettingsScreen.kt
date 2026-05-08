@@ -40,6 +40,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -221,6 +222,26 @@ fun SettingsScreen(
                     modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                 )
                 Text("${state.fontSize.roundToInt()}sp", style = MaterialTheme.typography.bodyMedium)
+            }
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(16.dp))
+
+            SectionHeader("Playback")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Volume normalization", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "Boost quiet audio to a consistent level",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = state.normalize, onCheckedChange = viewModel::setNormalize)
             }
 
             Spacer(Modifier.height(16.dp))

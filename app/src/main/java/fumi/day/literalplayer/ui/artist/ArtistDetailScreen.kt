@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -53,6 +54,7 @@ fun ArtistDetailScreen(
     currentTrackId: String? = null,
     onTrackClick: (Track) -> Unit,
     onAlbumPlay: (List<Track>) -> Unit,
+    onArtistPlay: (List<Track>) -> Unit,
     onBack: () -> Unit,
     viewModel: ArtistDetailViewModel = hiltViewModel(),
 ) {
@@ -77,6 +79,14 @@ fun ArtistDetailScreen(
                         }
                     },
                     title = { Text(artistName, style = MaterialTheme.typography.titleMedium) },
+                    actions = {
+                        val allTracks = albumMap.values.flatten()
+                        if (allTracks.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.updatePlaylist(allTracks); onArtistPlay(allTracks) }) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = "Play all")
+                            }
+                        }
+                    },
                 )
                 HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
             }

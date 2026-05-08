@@ -5,6 +5,7 @@ import android.os.Environment
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -30,6 +31,7 @@ data class UserPrefs(
     val backgroundColorHex: String = "",
     val font: AppFont = AppFont.DEFAULT,
     val fontSize: Float = 16f,
+    val normalize: Boolean = false,
 )
 
 @Singleton
@@ -43,6 +45,7 @@ class UserPreferences @Inject constructor(private val context: Context) {
     private val bgColorKey = stringPreferencesKey("bg_color")
     private val fontKey = stringPreferencesKey("font")
     private val fontSizeKey = floatPreferencesKey("font_size")
+    private val normalizeKey = booleanPreferencesKey("normalize")
 
     val prefs: Flow<UserPrefs> = context.dataStore.data.map { p ->
         UserPrefs(
@@ -55,6 +58,7 @@ class UserPreferences @Inject constructor(private val context: Context) {
             backgroundColorHex = p[bgColorKey] ?: "",
             font = AppFont.entries.find { it.name == p[fontKey] } ?: AppFont.DEFAULT,
             fontSize = p[fontSizeKey] ?: 16f,
+            normalize = p[normalizeKey] ?: false,
         )
     }
 
@@ -104,5 +108,9 @@ class UserPreferences @Inject constructor(private val context: Context) {
 
     suspend fun setFontSize(size: Float) {
         context.dataStore.edit { it[fontSizeKey] = size }
+    }
+
+    suspend fun setNormalize(enabled: Boolean) {
+        context.dataStore.edit { it[normalizeKey] = enabled }
     }
 }

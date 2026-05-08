@@ -75,5 +75,6 @@ class SettingsViewModel @Inject constructor(
     fun setBackgroundColor(hex: String) { viewModelScope.launch { prefs.setBackgroundColor(hex) } }
     fun setFont(font: AppFont) { viewModelScope.launch { prefs.setFont(font) } }
     fun setFontSize(size: Float) { viewModelScope.launch { prefs.setFontSize(size.coerceIn(12f, 24f)) } }
+    fun setNormalize(enabled: Boolean) { viewModelScope.launch { prefs.setNormalize(enabled) } }
     fun rescan() { trackRepository.triggerRescan() }
 }
