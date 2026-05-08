@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import fumi.day.literalplayer.data.prefs.UserPreferences
+import fumi.day.literalplayer.data.repository.TrackRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,12 +15,15 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val prefs: UserPreferences,
+    private val trackRepository: TrackRepository,
 ) : ViewModel() {
 
     val state = prefs.prefs.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000),
         fumi.day.literalplayer.data.prefs.UserPrefs()
     )
+
+    val isScanning = trackRepository.isScanning
 
     private val _pendingSubfolders = MutableStateFlow<List<String>>(emptyList())
     val pendingSubfolders = _pendingSubfolders.asStateFlow()
@@ -66,4 +70,7 @@ class SettingsViewModel @Inject constructor(
     fun setShortSkip(sec: Int) { viewModelScope.launch { prefs.setShortSkipSec(sec) } }
     fun setLongSkip(sec: Int) { viewModelScope.launch { prefs.setLongSkipSec(sec) } }
     fun setAccentColor(hex: String) { viewModelScope.launch { prefs.setAccentColor(hex) } }
+    fun setTextColor(hex: String) { viewModelScope.launch { prefs.setTextColor(hex) } }
+    fun setBackgroundColor(hex: String) { viewModelScope.launch { prefs.setBackgroundColor(hex) } }
+    fun rescan() { trackRepository.triggerRescan() }
 }

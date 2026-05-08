@@ -2,6 +2,7 @@ package fumi.day.literalplayer.ui.list
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
@@ -64,6 +65,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import fumi.day.literalplayer.domain.model.FavoritesList
 import fumi.day.literalplayer.domain.model.SortOrder
 import fumi.day.literalplayer.ui.player.PlayerViewModel
 import fumi.day.literalplayer.domain.model.Track
@@ -72,7 +74,7 @@ import fumi.day.literalplayer.domain.model.displayArtist
 import fumi.day.literalplayer.domain.model.displayTitle
 import fumi.day.literalplayer.domain.model.toDisplayDuration
 
-private val TABS = listOf("Artist", "Album", "All")
+private val TABS = listOf("Artist", "Album", "All", "Playlist")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,6 +88,7 @@ fun TrackListScreen(
     viewModel: TrackListViewModel = hiltViewModel(),
 ) {
     val prefs by viewModel.prefs.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     val playerState by playerViewModel.state.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedFolder by viewModel.selectedFolder.collectAsState()
@@ -100,6 +103,9 @@ fun TrackListScreen(
     val keyboard = LocalSoftwareKeyboardController.current
 
     val filteredTracks by viewModel.filteredTracks.collectAsState()
+    val selectedPlaylistId by viewModel.selectedPlaylistId.collectAsState()
+    val playlistTracks by viewModel.playlistTracks.collectAsState()
+    val playlistActionTrack by viewModel.playlistActionTrack.collectAsState()
     val sorted = when (prefs.sortOrder) {
         SortOrder.NAME -> filteredTracks.sortedBy { it.displayTitle.lowercase() }
         SortOrder.DATE -> filteredTracks.sortedByDescending { it.lastModified }
@@ -177,7 +183,7 @@ fun TrackListScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable(onClick = onNavigateToPlayer)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
                             .padding(horizontal = 16.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -202,7 +208,8 @@ fun TrackListScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                             .clip(RoundedCornerShape(24.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            .background(MaterialTheme.colorScheme.background)
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         contentAlignment = Alignment.CenterStart,
                     ) {
@@ -228,10 +235,63 @@ fun TrackListScreen(
             }
         }
     ) { padding ->
-        when (selectedTab) {
-            0 -> ArtistTab(sorted, onArtistClick, padding)
-            1 -> AlbumTab(sorted, onAlbumPlay, padding)
-            2 -> AllTab(sorted, onTrackClick, viewModel::showFavoritesSheet, padding)
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (selectedTab) {
+                0 -> ArtistTab(sorted, onArtistClick, padding)
+                1 -> AlbumTab(sorted, { tracks -> viewModel.updatePlaylist(tracks); onAlbumPlay(tracks) }, padding)
+                2 -> AllTab(sorted, { track -> viewModel.updatePlaylist(sorted); onTrackClick(track) },
+                    viewModel::showFavoritesSheet, playerState.track?.id, padding)
+                3 -> PlaylistTab(
+                    favoritesLists = favoritesLists,
+                    selectedPlaylistId = selectedPlaylistId,
+                    playlistTracks = playlistTracks,
+                    currentTrackId = playerState.track?.id,
+                    onSelectPlaylist = viewModel::selectPlaylist,
+                    onDeselectPlaylist = { viewModel.selectPlaylist(null) },
+                    onTrackClick = { track -> viewModel.updatePlaylist(playlistTracks); onTrackClick(track) },
+                    onTrackLongPress = viewModel::showPlaylistActionSheet,
+                    onDeletePlaylist = viewModel::deletePlaylist,
+                    padding = padding,
+                )
+            }
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = 0.7f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    androidx.compose.material3.CircularProgressIndicator()
+                }
+            }
+        }
+    }
+
+    playlistActionTrack?.let { track ->
+        val currentListName = favoritesLists.find { it.id == selectedPlaylistId }?.name ?: ""
+        ModalBottomSheet(
+            onDismissRequest = viewModel::hidePlaylistActionSheet,
+            sheetState = rememberModalBottomSheetState(),
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(track.displayTitle, style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider()
+                TextButton(
+                    onClick = {
+                        viewModel.removeFromCurrentPlaylist(track.id)
+                        viewModel.hidePlaylistActionSheet()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("✕ Remove from \"$currentListName\"") }
+                HorizontalDivider()
+                TextButton(
+                    onClick = {
+                        viewModel.hidePlaylistActionSheet()
+                        viewModel.showFavoritesSheet(track)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("+ Add to another playlist") }
+                Spacer(Modifier.height(32.dp))
+            }
         }
     }
 
@@ -345,11 +405,17 @@ private fun AllTab(
     tracks: List<Track>,
     onTrackClick: (Track) -> Unit,
     onLongPress: (Track) -> Unit,
+    currentTrackId: String?,
     padding: androidx.compose.foundation.layout.PaddingValues,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
         items(tracks) { track ->
-            TrackRow(track = track, onClick = { onTrackClick(track) }, onLongClick = { onLongPress(track) })
+            TrackRow(
+                track = track,
+                isPlaying = track.id == currentTrackId,
+                onClick = { onTrackClick(track) },
+                onLongClick = { onLongPress(track) },
+            )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         }
     }
@@ -357,11 +423,89 @@ private fun AllTab(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TrackRow(track: Track, onClick: () -> Unit, onLongClick: () -> Unit) {
+private fun PlaylistTab(
+    favoritesLists: List<FavoritesList>,
+    selectedPlaylistId: Long?,
+    playlistTracks: List<Track>,
+    currentTrackId: String?,
+    onSelectPlaylist: (Long) -> Unit,
+    onDeselectPlaylist: () -> Unit,
+    onTrackClick: (Track) -> Unit,
+    onTrackLongPress: (Track) -> Unit,
+    onDeletePlaylist: (Long) -> Unit,
+    padding: androidx.compose.foundation.layout.PaddingValues,
+) {
+    var confirmDeleteId by remember { mutableStateOf<Long?>(null) }
+
+    if (selectedPlaylistId == null) {
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+            items(favoritesLists) { list ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .combinedClickable(
+                            onClick = { onSelectPlaylist(list.id) },
+                            onLongClick = { confirmDeleteId = list.id },
+                        )
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(list.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                    Text(">", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            }
+        }
+    } else {
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onDeselectPlaylist)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("← Back", style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary)
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            }
+            items(playlistTracks) { track ->
+                TrackRow(
+                    track = track,
+                    isPlaying = track.id == currentTrackId,
+                    onClick = { onTrackClick(track) },
+                    onLongClick = { onTrackLongPress(track) },
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            }
+        }
+    }
+
+    confirmDeleteId?.let { id ->
+        val name = favoritesLists.find { it.id == id }?.name ?: ""
+        AlertDialog(
+            onDismissRequest = { confirmDeleteId = null },
+            title = { Text("Delete \"$name\"?") },
+            confirmButton = {
+                TextButton(onClick = { onDeletePlaylist(id); confirmDeleteId = null }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDeleteId = null }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun TrackRow(track: Track, isPlaying: Boolean = false, onClick: () -> Unit, onLongClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .background(if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

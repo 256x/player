@@ -38,6 +38,8 @@ class ArtistDetailViewModel @Inject constructor(
     fun albumsForArtist(artistName: String): Map<String, List<Track>> =
         trackRepository.tracksForArtist(trackRepository.getCached(), artistName)
 
+    fun updatePlaylist(tracks: List<Track>) { trackRepository.setPlaylist(tracks) }
+
     fun showFavoritesSheet(track: Track) { _favoritesSheetTrack.value = track }
     fun hideFavoritesSheet() { _favoritesSheetTrack.value = null }
 

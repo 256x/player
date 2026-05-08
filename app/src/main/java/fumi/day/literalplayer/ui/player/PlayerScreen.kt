@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -22,16 +23,21 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -64,7 +70,11 @@ fun PlayerScreen(
     viewModel: PlayerViewModel,
 ) {
     val state by viewModel.state.collectAsState()
+    val favoritesLists by viewModel.favoritesLists.collectAsState()
+    val showFavSheet by viewModel.showFavSheet.collectAsState()
     var showSpeedMenu by remember { mutableStateOf(false) }
+    var showNewFavDialog by remember { mutableStateOf(false) }
+    var newFavListName by remember { mutableStateOf("") }
 
     LaunchedEffect(trackId) { viewModel.init(trackId) }
 
@@ -111,10 +121,16 @@ fun PlayerScreen(
                 value = if (state.durationMs > 0) state.positionMs.toFloat() / state.durationMs else 0f,
                 onValueChange = { viewModel.seekTo((it * state.durationMs).toLong()) },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.onBackground,
+                    activeTrackColor = MaterialTheme.colorScheme.onBackground,
+                    inactiveTrackColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
+                ),
                 thumb = {
                     SliderDefaults.Thumb(
                         interactionSource = remember { MutableInteractionSource() },
                         modifier = Modifier.size(24.dp),
+                        colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.onBackground),
                     )
                 }
             )
@@ -173,6 +189,11 @@ fun PlayerScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row {
+                    IconButton(onClick = viewModel::openFavSheet, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Default.StarBorder, contentDescription = "Add to playlist",
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     IconButton(onClick = viewModel::toggleShuffle, modifier = Modifier.size(48.dp)) {
                         Icon(
                             Icons.Default.Shuffle,
@@ -209,6 +230,58 @@ fun PlayerScreen(
                 }
             }
         }
+    }
+
+    if (showFavSheet) {
+        ModalBottomSheet(
+            onDismissRequest = viewModel::closeFavSheet,
+            sheetState = rememberModalBottomSheetState(),
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                state.track?.let { Text(it.displayTitle, style = MaterialTheme.typography.titleMedium) }
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider()
+                TextButton(onClick = { showNewFavDialog = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("+ New favorites list")
+                }
+                HorizontalDivider()
+                favoritesLists.forEach { list ->
+                    TextButton(
+                        onClick = { viewModel.addTrackToFavorites(list.id); viewModel.closeFavSheet() },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("♥ ${list.name}") }
+                }
+                Spacer(Modifier.height(32.dp))
+            }
+        }
+    }
+
+    if (showNewFavDialog) {
+        AlertDialog(
+            onDismissRequest = { showNewFavDialog = false },
+            title = { Text("New favorites list") },
+            text = {
+                OutlinedTextField(
+                    value = newFavListName,
+                    onValueChange = { newFavListName = it },
+                    placeholder = { Text("List name") },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (newFavListName.isNotBlank()) {
+                        viewModel.createListAndAddTrack(newFavListName.trim())
+                        newFavListName = ""
+                        showNewFavDialog = false
+                        viewModel.closeFavSheet()
+                    }
+                }) { Text("Create") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewFavDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 }
 

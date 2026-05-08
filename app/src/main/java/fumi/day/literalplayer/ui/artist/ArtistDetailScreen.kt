@@ -1,6 +1,7 @@
 package fumi.day.literalplayer.ui.artist
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import fumi.day.literalplayer.domain.model.Track
@@ -47,6 +49,7 @@ import fumi.day.literalplayer.domain.model.toDisplayDuration
 @Composable
 fun ArtistDetailScreen(
     artistName: String,
+    currentTrackId: String? = null,
     onTrackClick: (Track) -> Unit,
     onAlbumPlay: (List<Track>) -> Unit,
     onBack: () -> Unit,
@@ -82,7 +85,7 @@ fun ArtistDetailScreen(
                         text = album,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .combinedClickable(onClick = { onAlbumPlay(tracks) })
+                            .combinedClickable(onClick = { viewModel.updatePlaylist(tracks); onAlbumPlay(tracks) })
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         style = MaterialTheme.typography.titleMedium,
                     )
@@ -92,9 +95,10 @@ fun ArtistDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .combinedClickable(
-                                onClick = { onTrackClick(track) },
+                                onClick = { viewModel.updatePlaylist(tracks); onTrackClick(track) },
                                 onLongClick = { viewModel.showFavoritesSheet(track) },
                             )
+                            .background(if (track.id == currentTrackId) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent)
                             .padding(start = 32.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {

@@ -8,6 +8,11 @@ import fumi.day.literalplayer.domain.model.Track
 import fumi.day.literalplayer.domain.model.displayAlbum
 import fumi.day.literalplayer.domain.model.displayArtist
 import fumi.day.literalplayer.domain.model.displayTitle
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,8 +23,23 @@ class TrackRepository @Inject constructor(
 ) {
     private var cachedTracks: List<Track> = emptyList()
 
+    private val _rescanTrigger = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val rescanTrigger: SharedFlow<Unit> = _rescanTrigger
+
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
+
+    fun triggerRescan() { _rescanTrigger.tryEmit(Unit) }
+
+    var currentPlaylist: List<Track> = emptyList()
+        private set
+
+    fun setPlaylist(tracks: List<Track>) { currentPlaylist = tracks }
+
     suspend fun loadTracks(rootFolders: Set<String>): List<Track> {
+        _isScanning.value = true
         cachedTracks = scanner.scan(rootFolders)
+        _isScanning.value = false
         return cachedTracks
     }
 

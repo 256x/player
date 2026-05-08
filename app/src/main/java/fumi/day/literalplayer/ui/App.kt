@@ -3,6 +3,10 @@ package fumi.day.literalplayer.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
 import fumi.day.literalplayer.ui.navigation.NavGraph
@@ -18,10 +22,12 @@ fun App(viewModel: AppViewModel = hiltViewModel()) {
     val startDestination = if (prefs.rootFolders.isEmpty()) Routes.SETUP else Routes.LIST
 
     LiteralPlayerTheme(userPrefs = prefs) {
-        NavGraph(
-            navController = navController,
-            startDestination = startDestination,
-            playerViewModel = playerViewModel,
-        )
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            NavGraph(
+                navController = navController,
+                startDestination = startDestination,
+                playerViewModel = playerViewModel,
+            )
+        }
     }
 }

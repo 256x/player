@@ -23,6 +23,8 @@ data class UserPrefs(
     val shortSkipSec: Int = 10,
     val longSkipSec: Int = 30,
     val accentColorHex: String = "",
+    val textColorHex: String = "",
+    val backgroundColorHex: String = "",
 )
 
 @Singleton
@@ -32,6 +34,8 @@ class UserPreferences @Inject constructor(private val context: Context) {
     private val shortSkipKey = intPreferencesKey("short_skip_sec")
     private val longSkipKey = intPreferencesKey("long_skip_sec")
     private val accentColorKey = stringPreferencesKey("accent_color")
+    private val textColorKey = stringPreferencesKey("text_color")
+    private val bgColorKey = stringPreferencesKey("bg_color")
 
     val prefs: Flow<UserPrefs> = context.dataStore.data.map { p ->
         UserPrefs(
@@ -40,6 +44,8 @@ class UserPreferences @Inject constructor(private val context: Context) {
             shortSkipSec = p[shortSkipKey] ?: 10,
             longSkipSec = p[longSkipKey] ?: 30,
             accentColorHex = p[accentColorKey] ?: "",
+            textColorHex = p[textColorKey] ?: "",
+            backgroundColorHex = p[bgColorKey] ?: "",
         )
     }
 
@@ -73,5 +79,13 @@ class UserPreferences @Inject constructor(private val context: Context) {
 
     suspend fun setAccentColor(hex: String) {
         context.dataStore.edit { it[accentColorKey] = hex }
+    }
+
+    suspend fun setTextColor(hex: String) {
+        context.dataStore.edit { it[textColorKey] = hex }
+    }
+
+    suspend fun setBackgroundColor(hex: String) {
+        context.dataStore.edit { it[bgColorKey] = hex }
     }
 }

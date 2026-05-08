@@ -1,6 +1,8 @@
 package fumi.day.literalplayer.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -35,6 +37,7 @@ fun NavGraph(
     startDestination: String,
     playerViewModel: PlayerViewModel,
 ) {
+    val playerState by playerViewModel.state.collectAsState()
     NavHost(navController = navController, startDestination = startDestination) {
         composable(Routes.SETUP) {
             SetupScreen(onComplete = {
@@ -70,6 +73,7 @@ fun NavGraph(
             val artistName = URLDecoder.decode(backStack.arguments?.getString("artistName") ?: "", "UTF-8")
             ArtistDetailScreen(
                 artistName = artistName,
+                currentTrackId = playerState.track?.id,
                 onTrackClick = { track -> navController.navigate(Routes.player(track.id)) },
                 onAlbumPlay = { tracks -> navController.navigate(Routes.player(tracks.first().id)) },
                 onBack = { navController.popBackStack() },

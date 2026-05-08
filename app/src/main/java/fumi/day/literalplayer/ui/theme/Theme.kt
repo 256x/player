@@ -42,6 +42,8 @@ fun LiteralPlayerTheme(
     content: @Composable () -> Unit,
 ) {
     val accentColor = parseColor(userPrefs.accentColorHex) ?: Color(0xFF6650A4)
+    val textColor = parseColor(userPrefs.textColorHex) ?: Color.White
+    val bgColor = parseColor(userPrefs.backgroundColorHex) ?: Color.Black
 
     val baseColorScheme = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
@@ -55,10 +57,11 @@ fun LiteralPlayerTheme(
         primary = accentColor,
         secondary = accentColor,
         tertiary = accentColor,
-        background = if (darkTheme) Color.Black else Color.White,
-        surface = if (darkTheme) Color.Black else Color.White,
-        onBackground = if (darkTheme) Color.White else Color.Black,
-        onSurface = if (darkTheme) Color.White else Color.Black,
+        background = bgColor,
+        surface = bgColor,
+        onBackground = textColor,
+        onSurface = textColor,
+        onSurfaceVariant = textColor.copy(alpha = 0.6f),
     )
 
     val view = LocalView.current
