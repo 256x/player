@@ -263,6 +263,14 @@ fun SettingsScreen(
                     color = parseColor(state.accentColorHex) ?: Color(0xFF6650A4),
                     onClick = { showColorPicker = ColorPickerTarget.ACCENT })
             }
+
+            Spacer(Modifier.height(32.dp))
+            Text(
+                text = "Literal Player v${fumi.day.literalplayer.BuildConfig.VERSION_NAME}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
         }
     }
 
