@@ -21,6 +21,10 @@ A minimalist local audio player for Android.
 - Color customization — background, text, accent
 - No internet required. No cloud. No tracking.
 
+## Notes
+
+**First launch is slow.** The app reads metadata (title, artist, album) directly from each audio file using `MediaMetadataRetriever`. With a large library this can take a minute or more. Results are cached locally, so subsequent launches are instant. Tap **Rescan media** in Settings only when you add or remove files.
+
 ## Development
 
 - Kotlin / Jetpack Compose / Media3 (ExoPlayer)
