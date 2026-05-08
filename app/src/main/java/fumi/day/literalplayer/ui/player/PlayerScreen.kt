@@ -93,29 +93,42 @@ fun PlayerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.Center,
         ) {
-            state.track?.let { track ->
-                Text(
-                    track.displayTitle,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    track.displayArtist,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    "${track.displayAlbum}${if (track.year.isNotBlank()) " · ${track.year}" else ""}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            // Title zone: weight(1f) so it absorbs all slack.
+            // BottomStart pins the text to the bottom edge — title grows upward,
+            // so the seekbar's position never shifts when lines wrap.
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = Alignment.BottomStart,
+            ) {
+                state.track?.let { track ->
+                    Column {
+                        Text(
+                            track.displayTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            track.displayArtist,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            "${track.displayAlbum}${if (track.year.isNotBlank()) " · ${track.year}" else ""}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
 
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(32.dp))
 
             Slider(
                 value = if (state.durationMs > 0) state.positionMs.toFloat() / state.durationMs else 0f,
@@ -229,6 +242,7 @@ fun PlayerScreen(
                     }
                 }
             }
+            Spacer(Modifier.height(40.dp))
         }
     }
 
