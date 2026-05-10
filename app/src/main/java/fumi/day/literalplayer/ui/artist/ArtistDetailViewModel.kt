@@ -9,6 +9,7 @@ import fumi.day.literalplayer.data.prefs.UserPreferences
 import fumi.day.literalplayer.data.repository.FavoritesRepository
 import fumi.day.literalplayer.data.repository.TrackRepository
 import fumi.day.literalplayer.domain.model.Track
+import fumi.day.literalplayer.ui.list.TrackActionState
 import fumi.day.literalplayer.util.deleteAudioFile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -35,9 +36,6 @@ class ArtistDetailViewModel @Inject constructor(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
 
-    private val _favoritesSheetTrack = MutableStateFlow<Track?>(null)
-    val favoritesSheetTrack = _favoritesSheetTrack.asStateFlow()
-
     private val _artistName = MutableStateFlow("")
     fun setArtistName(name: String) { _artistName.value = name }
 
@@ -48,17 +46,60 @@ class ArtistDetailViewModel @Inject constructor(
 
     fun updatePlaylist(tracks: List<Track>) { trackRepository.setPlaylist(tracks) }
 
-    fun showFavoritesSheet(track: Track) { _favoritesSheetTrack.value = track }
-    fun hideFavoritesSheet() { _favoritesSheetTrack.value = null }
+    // Single-track action sheet
+    private val _trackAction = MutableStateFlow<TrackActionState?>(null)
+    val trackAction = _trackAction.asStateFlow()
 
-    fun addToFavorites(listId: Long, track: Track) {
-        viewModelScope.launch { favoritesRepository.addTrack(listId, track) }
+    private val _trackMemberOf = MutableStateFlow<Set<Long>>(emptySet())
+    val trackMemberOf = _trackMemberOf.asStateFlow()
+
+    fun showTrackAction(track: Track) {
+        _trackAction.value = TrackActionState(track)
+        viewModelScope.launch {
+            _trackMemberOf.value = favoritesRepository.getListIdsForTrack(track.id).toSet()
+        }
     }
 
-    fun createFavoritesListAndAdd(name: String, track: Track) {
+    fun hideTrackAction() {
+        _trackAction.value = null
+        _trackMemberOf.value = emptySet()
+    }
+
+    fun toggleTrackInPlaylist(listId: Long, track: Track) {
+        viewModelScope.launch {
+            if (listId in _trackMemberOf.value) {
+                favoritesRepository.removeTrack(listId, track.id)
+                _trackMemberOf.value = _trackMemberOf.value - listId
+            } else {
+                favoritesRepository.addTrack(listId, track)
+                _trackMemberOf.value = _trackMemberOf.value + listId
+            }
+        }
+    }
+
+    fun createPlaylistAndAdd(name: String, track: Track) {
         viewModelScope.launch {
             val id = favoritesRepository.createList(name)
             favoritesRepository.addTrack(id, track)
+            _trackMemberOf.value = _trackMemberOf.value + id
+        }
+    }
+
+    // Multi-select playlist sheet
+    private val _multiPlaylistSheetTracks = MutableStateFlow<List<Track>>(emptyList())
+    val multiPlaylistSheetTracks = _multiPlaylistSheetTracks.asStateFlow()
+
+    fun showMultiPlaylistSheet(tracks: List<Track>) { _multiPlaylistSheetTracks.value = tracks }
+    fun hideMultiPlaylistSheet() { _multiPlaylistSheetTracks.value = emptyList() }
+
+    fun addAllToPlaylist(listId: Long, tracks: List<Track>) {
+        viewModelScope.launch { tracks.forEach { favoritesRepository.addTrack(listId, it) } }
+    }
+
+    fun createPlaylistAndAddAll(name: String, tracks: List<Track>) {
+        viewModelScope.launch {
+            val id = favoritesRepository.createList(name)
+            tracks.forEach { favoritesRepository.addTrack(id, it) }
         }
     }
 
@@ -68,6 +109,16 @@ class ArtistDetailViewModel @Inject constructor(
             val updated = trackRepository.getCached().filter { it.id != track.id }
             trackRepository.updateCached(updated)
             trackRepository.setPlaylist(trackRepository.currentPlaylist.filter { it.id != track.id })
+        }
+    }
+
+    fun deleteFiles(tracks: List<Track>) {
+        viewModelScope.launch {
+            val ids = tracks.map { it.id }.toSet()
+            tracks.forEach { deleteAudioFile(context, it.path) }
+            val updated = trackRepository.getCached().filter { it.id !in ids }
+            trackRepository.updateCached(updated)
+            trackRepository.setPlaylist(trackRepository.currentPlaylist.filter { it.id !in ids })
         }
     }
 }

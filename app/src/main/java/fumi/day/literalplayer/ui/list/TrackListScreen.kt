@@ -1,5 +1,6 @@
 package fumi.day.literalplayer.ui.list
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,9 +25,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.AlertDialog
@@ -81,7 +85,6 @@ private val TABS = listOf("Artist", "Album", "All", "Playlist")
 fun TrackListScreen(
     onTrackClick: (Track) -> Unit,
     onArtistClick: (String) -> Unit,
-    onArtistPlay: (List<Track>) -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToPlayer: () -> Unit = {},
     playerViewModel: PlayerViewModel,
@@ -93,20 +96,32 @@ fun TrackListScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedFolder by viewModel.selectedFolder.collectAsState()
     val favoritesLists by viewModel.favoritesLists.collectAsState()
-    val favoritesSheetTrack by viewModel.favoritesSheetTrack.collectAsState()
+    val trackAction by viewModel.trackAction.collectAsState()
+    val trackMemberOf by viewModel.trackMemberOf.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var showSortMenu by remember { mutableStateOf(false) }
     var showFolderMenu by remember { mutableStateOf(false) }
-    var newFavListName by remember { mutableStateOf("") }
-    var showNewFavDialog by remember { mutableStateOf(false) }
+    var newListName by remember { mutableStateOf("") }
+    var showNewPlaylistDialog by remember { mutableStateOf(false) }
+    var showMultiNewPlaylistDialog by remember { mutableStateOf(false) }
     var confirmDeleteTrack by remember { mutableStateOf<Track?>(null) }
+    var confirmDeleteSelected by remember { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
 
     val filteredTracks by viewModel.filteredTracks.collectAsState()
     val selectedPlaylistId by viewModel.selectedPlaylistId.collectAsState()
     val playlistTracks by viewModel.playlistTracks.collectAsState()
-    val playlistActionTrack by viewModel.playlistActionTrack.collectAsState()
+    val multiPlaylistTracks by viewModel.multiPlaylistSheetTracks.collectAsState()
+
+    val currentPlaylistName = favoritesLists.find { it.id == selectedPlaylistId }?.name
+
+    var selectedIds by remember(selectedTab) { mutableStateOf<Set<String>>(emptySet()) }
+    val isSelecting = selectedIds.isNotEmpty()
+    fun toggleSelect(track: Track) {
+        selectedIds = if (track.id in selectedIds) selectedIds - track.id else selectedIds + track.id
+    }
+
     val sorted = when (prefs.sortOrder) {
         SortOrder.NAME -> filteredTracks.sortedBy { it.displayTitle.lowercase() }
         SortOrder.DATE -> filteredTracks.sortedByDescending { it.lastModified }
@@ -203,34 +218,59 @@ fun TrackListScreen(
                     }
                     HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
                 }
-                BottomAppBar(containerColor = Color.Transparent) {
-                    Box(
+                if (isSelecting) {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(MaterialTheme.colorScheme.background)
-                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        contentAlignment = Alignment.CenterStart,
+                            .padding(horizontal = 4.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = viewModel::setSearch,
-                            modifier = Modifier.fillMaxWidth(),
-                            textStyle = TextStyle(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface),
-                            singleLine = true,
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
-                            decorationBox = { inner ->
-                                if (searchQuery.isEmpty()) {
-                                    Text("Search tracks...", style = TextStyle(fontSize = 14.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant))
-                                }
-                                inner()
-                            }
+                        Text(
+                            "${selectedIds.size} selected",
+                            modifier = Modifier.weight(1f).padding(start = 12.dp),
+                            style = MaterialTheme.typography.bodyMedium,
                         )
+                        TextButton(onClick = {
+                            val tracks = sorted.filter { it.id in selectedIds }
+                            viewModel.showMultiPlaylistSheet(tracks)
+                        }) { Text("Playlist") }
+                        TextButton(onClick = { confirmDeleteTrack = null; confirmDeleteSelected = true }) {
+                            Text("Delete", color = Color(0xFFCF6679))
+                        }
+                        IconButton(onClick = { selectedIds = emptySet() }) {
+                            Icon(Icons.Default.Close, contentDescription = "Cancel selection")
+                        }
+                    }
+                } else {
+                    BottomAppBar(containerColor = Color.Transparent) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(MaterialTheme.colorScheme.background)
+                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            contentAlignment = Alignment.CenterStart,
+                        ) {
+                            BasicTextField(
+                                value = searchQuery,
+                                onValueChange = viewModel::setSearch,
+                                modifier = Modifier.fillMaxWidth(),
+                                textStyle = TextStyle(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface),
+                                singleLine = true,
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
+                                decorationBox = { inner ->
+                                    if (searchQuery.isEmpty()) {
+                                        Text("Search tracks...", style = TextStyle(fontSize = 14.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant))
+                                    }
+                                    inner()
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -238,30 +278,37 @@ fun TrackListScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             when (selectedTab) {
-                0 -> ArtistTab(
-                    tracks = sorted,
-                    onArtistClick = onArtistClick,
-                    onArtistPlay = { artistTracks -> viewModel.updatePlaylist(artistTracks); onArtistPlay(artistTracks) },
-                    padding = padding,
-                )
+                0 -> ArtistTab(tracks = sorted, onArtistClick = onArtistClick, padding = padding)
                 1 -> AlbumTab(
                     tracks = sorted,
                     onTrackClick = { albumTracks, track -> viewModel.updatePlaylist(albumTracks); onTrackClick(track) },
-                    onLongPress = viewModel::showFavoritesSheet,
+                    onToggle = ::toggleSelect,
+                    onAction = { track -> viewModel.showTrackAction(track) },
+                    onClearSelection = { selectedIds = emptySet() },
                     currentTrackId = playerState.track?.id,
+                    selectedIds = selectedIds,
                     padding = padding,
                 )
-                2 -> AllTab(sorted, { track -> viewModel.updatePlaylist(sorted); onTrackClick(track) },
-                    viewModel::showFavoritesSheet, playerState.track?.id, padding)
+                2 -> AllTab(
+                    tracks = sorted,
+                    onTrackClick = { track -> viewModel.updatePlaylist(sorted); onTrackClick(track) },
+                    onToggle = ::toggleSelect,
+                    onAction = { track -> viewModel.showTrackAction(track) },
+                    currentTrackId = playerState.track?.id,
+                    selectedIds = selectedIds,
+                    padding = padding,
+                )
                 3 -> PlaylistTab(
                     favoritesLists = favoritesLists,
                     selectedPlaylistId = selectedPlaylistId,
                     playlistTracks = playlistTracks,
                     currentTrackId = playerState.track?.id,
+                    selectedIds = selectedIds,
                     onSelectPlaylist = viewModel::selectPlaylist,
-                    onDeselectPlaylist = { viewModel.selectPlaylist(null) },
+                    onDeselectPlaylist = { viewModel.selectPlaylist(null); selectedIds = emptySet() },
                     onTrackClick = { track -> viewModel.updatePlaylist(playlistTracks); onTrackClick(track) },
-                    onTrackLongPress = viewModel::showPlaylistActionSheet,
+                    onToggle = ::toggleSelect,
+                    onAction = { track -> viewModel.showTrackAction(track, selectedPlaylistId, currentPlaylistName) },
                     onDeletePlaylist = viewModel::deletePlaylist,
                     padding = padding,
                 )
@@ -277,106 +324,84 @@ fun TrackListScreen(
         }
     }
 
-    playlistActionTrack?.let { track ->
-        val currentListName = favoritesLists.find { it.id == selectedPlaylistId }?.name ?: ""
+    // Unified track action sheet
+    trackAction?.let { action ->
         ModalBottomSheet(
-            onDismissRequest = viewModel::hidePlaylistActionSheet,
+            onDismissRequest = viewModel::hideTrackAction,
             sheetState = rememberModalBottomSheetState(),
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(track.displayTitle, style = MaterialTheme.typography.titleMedium)
+                Text(action.track.displayTitle, style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(16.dp))
-                HorizontalDivider()
-                TextButton(
-                    onClick = {
-                        viewModel.removeFromCurrentPlaylist(track.id)
-                        viewModel.hidePlaylistActionSheet()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("✕ Remove from \"$currentListName\"") }
-                HorizontalDivider()
-                TextButton(
-                    onClick = {
-                        viewModel.hidePlaylistActionSheet()
-                        viewModel.showFavoritesSheet(track)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("+ Add to another playlist") }
-                HorizontalDivider()
-                TextButton(
-                    onClick = {
-                        viewModel.hidePlaylistActionSheet()
-                        confirmDeleteTrack = track
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Delete file", color = androidx.compose.ui.graphics.Color(0xFFCF6679)) }
-                Spacer(Modifier.height(32.dp))
-            }
-        }
-    }
-
-    favoritesSheetTrack?.let { track ->
-        ModalBottomSheet(
-            onDismissRequest = viewModel::hideFavoritesSheet,
-            sheetState = rememberModalBottomSheetState(),
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(track.displayTitle, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(16.dp))
-                HorizontalDivider()
-                TextButton(
-                    onClick = { showNewFavDialog = true },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("+ New favorites list") }
-                HorizontalDivider()
-                favoritesLists.forEach { list ->
+                if (action.playlistId != null) {
+                    HorizontalDivider()
                     TextButton(
                         onClick = {
-                            viewModel.addToFavorites(list.id, track)
-                            viewModel.hideFavoritesSheet()
+                            viewModel.removeFromPlaylist(action.playlistId, action.track.id)
+                            viewModel.hideTrackAction()
                         },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("♥ ${list.name}") }
+                    ) { Text("✕ Remove from \"${action.playlistName}\"") }
+                }
+                HorizontalDivider()
+                TextButton(onClick = { showNewPlaylistDialog = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("+ New playlist")
+                }
+                HorizontalDivider()
+                favoritesLists.forEach { list ->
+                    val isMember = list.id in trackMemberOf
+                    TextButton(
+                        onClick = { viewModel.toggleTrackInPlaylist(list.id, action.track) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                if (isMember) "✓ " else "    ",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(list.name)
+                        }
+                    }
                 }
                 HorizontalDivider()
                 TextButton(
-                    onClick = {
-                        viewModel.hideFavoritesSheet()
-                        confirmDeleteTrack = track
-                    },
+                    onClick = { selectedIds = setOf(action.track.id); viewModel.hideTrackAction() },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Delete file", color = androidx.compose.ui.graphics.Color(0xFFCF6679)) }
+                ) { Text("Select multiple") }
+                HorizontalDivider()
+                TextButton(
+                    onClick = { viewModel.hideTrackAction(); confirmDeleteTrack = action.track },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Delete file", color = Color(0xFFCF6679)) }
                 Spacer(Modifier.height(32.dp))
             }
         }
     }
 
-    if (showNewFavDialog) {
+    if (showNewPlaylistDialog) {
         AlertDialog(
-            onDismissRequest = { showNewFavDialog = false },
-            title = { Text("New favorites list") },
+            onDismissRequest = { showNewPlaylistDialog = false },
+            title = { Text("New playlist") },
             text = {
                 OutlinedTextField(
-                    value = newFavListName,
-                    onValueChange = { newFavListName = it },
+                    value = newListName,
+                    onValueChange = { newListName = it },
                     placeholder = { Text("List name") },
                     singleLine = true,
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
-                    if (newFavListName.isNotBlank()) {
-                        favoritesSheetTrack?.let {
-                            viewModel.createFavoritesListAndAdd(newFavListName.trim(), it)
-                        }
-                        newFavListName = ""
-                        showNewFavDialog = false
-                        viewModel.hideFavoritesSheet()
+                    if (newListName.isNotBlank()) {
+                        trackAction?.let { viewModel.createPlaylistAndAdd(newListName.trim(), it.track) }
+                        newListName = ""
+                        showNewPlaylistDialog = false
+                        viewModel.hideTrackAction()
                     }
                 }) { Text("Create") }
             },
             dismissButton = {
-                TextButton(onClick = { showNewFavDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showNewPlaylistDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -390,10 +415,85 @@ fun TrackListScreen(
                 TextButton(onClick = {
                     viewModel.deleteFile(track)
                     confirmDeleteTrack = null
-                }) { Text("Delete", color = androidx.compose.ui.graphics.Color(0xFFCF6679)) }
+                }) { Text("Delete", color = Color(0xFFCF6679)) }
             },
             dismissButton = {
                 TextButton(onClick = { confirmDeleteTrack = null }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (confirmDeleteSelected) {
+        AlertDialog(
+            onDismissRequest = { confirmDeleteSelected = false },
+            title = { Text("Delete ${selectedIds.size} files?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val tracks = sorted.filter { it.id in selectedIds }
+                    viewModel.deleteFiles(tracks)
+                    selectedIds = emptySet()
+                    confirmDeleteSelected = false
+                }) { Text("Delete", color = Color(0xFFCF6679)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDeleteSelected = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (multiPlaylistTracks.isNotEmpty()) {
+        ModalBottomSheet(
+            onDismissRequest = viewModel::hideMultiPlaylistSheet,
+            sheetState = rememberModalBottomSheetState(),
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("${multiPlaylistTracks.size} tracks", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider()
+                TextButton(onClick = { showMultiNewPlaylistDialog = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("+ New playlist")
+                }
+                HorizontalDivider()
+                favoritesLists.forEach { list ->
+                    TextButton(
+                        onClick = {
+                            viewModel.addAllToPlaylist(list.id, multiPlaylistTracks)
+                            viewModel.hideMultiPlaylistSheet()
+                            selectedIds = emptySet()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(list.name) }
+                }
+                Spacer(Modifier.height(32.dp))
+            }
+        }
+    }
+
+    if (showMultiNewPlaylistDialog) {
+        AlertDialog(
+            onDismissRequest = { showMultiNewPlaylistDialog = false },
+            title = { Text("New playlist") },
+            text = {
+                OutlinedTextField(
+                    value = newListName,
+                    onValueChange = { newListName = it },
+                    placeholder = { Text("List name") },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (newListName.isNotBlank()) {
+                        viewModel.createPlaylistAndAddAll(newListName.trim(), multiPlaylistTracks)
+                        newListName = ""
+                        showMultiNewPlaylistDialog = false
+                        viewModel.hideMultiPlaylistSheet()
+                        selectedIds = emptySet()
+                    }
+                }) { Text("Create") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMultiNewPlaylistDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -403,26 +503,17 @@ fun TrackListScreen(
 private fun ArtistTab(
     tracks: List<Track>,
     onArtistClick: (String) -> Unit,
-    onArtistPlay: (List<Track>) -> Unit,
     padding: androidx.compose.foundation.layout.PaddingValues,
 ) {
-    val artistGroups = tracks.groupBy { it.displayArtist }
-    val artists = artistGroups.keys.sorted()
+    val artists = tracks.groupBy { it.displayArtist }.keys.sorted()
     LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
         items(artists) { artist ->
             Row(
                 modifier = Modifier.fillMaxWidth().clickable { onArtistClick(artist) }
-                    .padding(start = 16.dp),
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(artist, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                IconButton(onClick = { onArtistPlay(artistGroups[artist] ?: emptyList()) }) {
-                    Icon(
-                        Icons.Default.PlayArrow,
-                        contentDescription = "Play artist",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         }
@@ -434,12 +525,20 @@ private fun ArtistTab(
 private fun AlbumTab(
     tracks: List<Track>,
     onTrackClick: (albumTracks: List<Track>, track: Track) -> Unit,
-    onLongPress: (Track) -> Unit,
+    onToggle: (Track) -> Unit,
+    onAction: (Track) -> Unit,
+    onClearSelection: () -> Unit,
     currentTrackId: String?,
+    selectedIds: Set<String>,
     padding: androidx.compose.foundation.layout.PaddingValues,
 ) {
     var selectedAlbumName by remember { mutableStateOf<String?>(null) }
     val albums = tracks.groupBy { it.displayAlbum }.entries.sortedBy { it.key }
+
+    BackHandler(enabled = selectedAlbumName != null) {
+        selectedAlbumName = null
+        onClearSelection()
+    }
 
     if (selectedAlbumName == null) {
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -461,7 +560,8 @@ private fun AlbumTab(
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth().clickable { selectedAlbumName = null }
+                    modifier = Modifier.fillMaxWidth()
+                        .clickable { selectedAlbumName = null; onClearSelection() }
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                 ) {
                     Text("← Back", style = MaterialTheme.typography.bodyMedium,
@@ -470,10 +570,19 @@ private fun AlbumTab(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             }
             item {
-                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
-                    Text(selectedAlbumName!!, style = MaterialTheme.typography.titleMedium)
-                    Text(albumTracks.first().displayArtist, style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f).padding(vertical = 12.dp)) {
+                        Text(selectedAlbumName!!, style = MaterialTheme.typography.titleMedium)
+                        Text(albumTracks.first().displayArtist, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    IconButton(onClick = { onTrackClick(albumTracks, albumTracks.first()) }) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = "Play album",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             }
@@ -481,8 +590,10 @@ private fun AlbumTab(
                 TrackRow(
                     track = track,
                     isPlaying = track.id == currentTrackId,
-                    onClick = { onTrackClick(albumTracks, track) },
-                    onLongClick = { onLongPress(track) },
+                    isSelected = track.id in selectedIds,
+                    isSelecting = selectedIds.isNotEmpty(),
+                    onClick = { if (selectedIds.isNotEmpty()) onToggle(track) else onTrackClick(albumTracks, track) },
+                    onLongClick = { if (selectedIds.isNotEmpty()) onToggle(track) else onAction(track) },
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             }
@@ -495,17 +606,40 @@ private fun AlbumTab(
 private fun AllTab(
     tracks: List<Track>,
     onTrackClick: (Track) -> Unit,
-    onLongPress: (Track) -> Unit,
+    onToggle: (Track) -> Unit,
+    onAction: (Track) -> Unit,
     currentTrackId: String?,
+    selectedIds: Set<String>,
     padding: androidx.compose.foundation.layout.PaddingValues,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
+        if (tracks.isNotEmpty()) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "${tracks.size} tracks",
+                        modifier = Modifier.weight(1f).padding(vertical = 14.dp),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    IconButton(onClick = { onTrackClick(tracks.first()) }) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = "Play all",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            }
+        }
         items(tracks) { track ->
             TrackRow(
                 track = track,
                 isPlaying = track.id == currentTrackId,
-                onClick = { onTrackClick(track) },
-                onLongClick = { onLongPress(track) },
+                isSelected = track.id in selectedIds,
+                isSelecting = selectedIds.isNotEmpty(),
+                onClick = { if (selectedIds.isNotEmpty()) onToggle(track) else onTrackClick(track) },
+                onLongClick = { if (selectedIds.isNotEmpty()) onToggle(track) else onAction(track) },
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         }
@@ -519,14 +653,18 @@ private fun PlaylistTab(
     selectedPlaylistId: Long?,
     playlistTracks: List<Track>,
     currentTrackId: String?,
+    selectedIds: Set<String>,
     onSelectPlaylist: (Long) -> Unit,
     onDeselectPlaylist: () -> Unit,
     onTrackClick: (Track) -> Unit,
-    onTrackLongPress: (Track) -> Unit,
+    onToggle: (Track) -> Unit,
+    onAction: (Track) -> Unit,
     onDeletePlaylist: (Long) -> Unit,
     padding: androidx.compose.foundation.layout.PaddingValues,
 ) {
     var confirmDeleteId by remember { mutableStateOf<Long?>(null) }
+
+    BackHandler(enabled = selectedPlaylistId != null) { onDeselectPlaylist() }
 
     if (selectedPlaylistId == null) {
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -542,12 +680,12 @@ private fun PlaylistTab(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(list.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                    Text(">", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             }
         }
     } else {
+        val playlistName = favoritesLists.find { it.id == selectedPlaylistId }?.name ?: ""
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
             item {
                 Row(
@@ -562,12 +700,33 @@ private fun PlaylistTab(
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             }
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        playlistName,
+                        modifier = Modifier.weight(1f).padding(vertical = 14.dp),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    if (playlistTracks.isNotEmpty()) {
+                        IconButton(onClick = { onTrackClick(playlistTracks.first()) }) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = "Play playlist",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            }
             items(playlistTracks) { track ->
                 TrackRow(
                     track = track,
                     isPlaying = track.id == currentTrackId,
-                    onClick = { onTrackClick(track) },
-                    onLongClick = { onTrackLongPress(track) },
+                    isSelected = track.id in selectedIds,
+                    isSelecting = selectedIds.isNotEmpty(),
+                    onClick = { if (selectedIds.isNotEmpty()) onToggle(track) else onTrackClick(track) },
+                    onLongClick = { if (selectedIds.isNotEmpty()) onToggle(track) else onAction(track) },
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             }
@@ -591,15 +750,37 @@ private fun PlaylistTab(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TrackRow(track: Track, isPlaying: Boolean = false, onClick: () -> Unit, onLongClick: () -> Unit) {
+fun TrackRow(
+    track: Track,
+    isPlaying: Boolean = false,
+    isSelected: Boolean = false,
+    isSelecting: Boolean = false,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    val bg = when {
+        isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+        isPlaying -> MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+        else -> Color.Transparent
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .background(if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent)
+            .background(bg)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (isSelecting) {
+            Icon(
+                imageVector = if (isSelected) Icons.Default.CheckCircle
+                              else Icons.Default.RadioButtonUnchecked,
+                contentDescription = null,
+                tint = if (isSelected) MaterialTheme.colorScheme.primary
+                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 12.dp),
+            )
+        }
         Text(track.displayTitle, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         Text(track.durationMs.toDisplayDuration(), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
