@@ -16,10 +16,10 @@ The main screen has four tabs:
 
 | Tab | Contents |
 |---|---|
-| **Artist** | Artists → tap to see albums and tracks |
-| **Album** | All albums → tap to play the album |
-| **All** | All tracks sorted by name, date, or size |
-| **Playlist** | Your saved favorites lists |
+| **Artist** | Artists → tap to browse albums and tracks |
+| **Album** | All albums → tap to see tracks, then play |
+| **All** | All tracks with total count and play-all button |
+| **Playlist** | Your saved playlists |
 
 Use the **Folder** icon (top right) to filter by a specific folder.  
 Use the **Sort** icon to change sort order (Name / Date / Size).  
@@ -29,10 +29,10 @@ Use the **Search bar** at the bottom to search by title, artist, or album.
 
 Tap any track to open the player.
 
-- **Artist tab**: tap an artist → tap a track or an album header to play
-- **Album tab**: tap an album to play from the first track
-- **All tab**: tap a track — next/prev buttons navigate the full sorted list
-- **Playlist tab**: tap a playlist → tap a track — next/prev navigate within that playlist
+- **Artist tab**: tap an artist → tap ▶ next to an album to play that album, or tap a track to play from there
+- **Album tab**: tap an album to open its track list → tap ▶ in the header to play from the first track, or tap any track
+- **All tab**: tap ▶ in the header to play all, or tap any track — next/prev navigate the full sorted list
+- **Playlist tab**: tap a playlist → tap ▶ in the header or any track — next/prev navigate within that playlist
 
 The now-playing bar at the bottom shows the current track. Tap it to return to the player.
 
@@ -46,7 +46,7 @@ The now-playing bar at the bottom shows the current track. Tap it to return to t
 | **Speed** | Tap to cycle playback speed (0.8x – 2.0x) |
 | **Shuffle** | Randomize playback order |
 | **Repeat** | Cycle: Off → All → One |
-| **★** | Add current track to a favorites playlist |
+| **★** | Add current track to a playlist |
 
 Skip durations are configurable in **Settings**.
 
@@ -54,26 +54,25 @@ Playback position is saved automatically. Resuming a track starts where you left
 
 ## Playlists
 
-### Creating a playlist
+### Action sheet
 
-Long-press any track (in Artist, Album, or All tab) → tap **+ New favorites list** → enter a name.
+Long-press any track to open the action sheet:
 
-### Adding to an existing playlist
+- **Playlists with ✓** — tap to toggle membership (✓ = already in that list)
+- **+ New playlist** — create a new playlist and add the track
+- **Select multiple** — enter multi-select mode starting with this track
+- **Delete file** — permanently delete the audio file
 
-Long-press any track → tap the playlist name.
+When viewing a playlist's track list, the action sheet also shows **✕ Remove from "[name]"** at the top.
 
-From the player, tap **★** → select or create a playlist.
+### Multi-select
 
-### Browsing playlists
-
-Tap the **Playlist** tab → tap a playlist to see its tracks.
-
-### Managing playlist tracks
-
-In a playlist's track list, long-press a track to:
-
-- **Remove** it from the current playlist
-- **Add** it to another playlist
+1. Long-press a track → tap **Select multiple**
+2. Tap additional tracks to add them to the selection
+3. Use the action bar at the bottom:
+   - **Playlist** — add all selected tracks to a playlist
+   - **Delete** — delete all selected files
+   - **✕** — cancel selection
 
 ### Deleting a playlist
 
@@ -83,10 +82,11 @@ In the Playlist tab (list view), long-press a playlist → **Delete**.
 
 | Setting | Description |
 |---|---|
-| **Folders** | Add or remove music folders |
-| **Rescan media** | Re-read all configured folders |
+| **Folders** | Add or remove music folders. Tap **+** to add, tap a folder chip × to remove |
+| **Rescan media** | Re-read folders for new or changed files (fast — unchanged files are skipped) |
 | **Short skip** | Duration for a short skip tap (seconds) |
 | **Long skip** | Duration for a long-press skip (seconds) |
+| **Normalize volume** | Apply loudness normalization during playback |
 | **Colors** | Customize background, text, and accent colors |
 
 ### Color picker

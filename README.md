@@ -13,8 +13,10 @@ A minimalist local audio player for Android.
 ## Features
 
 - Browse by Artist, Album, All tracks, or Playlist
-- Favorites playlists — save and organize tracks
+- Playlists — create and organize tracks into named lists
+- Multi-select tracks for batch add-to-playlist or delete
 - Playback speed control (0.8x – 2.0x)
+- Volume normalization
 - Skip forward/backward with short and long press
 - Resume position per track
 - Next/prev navigation within the current list
@@ -23,7 +25,9 @@ A minimalist local audio player for Android.
 
 ## Notes
 
-**First launch is slow.** The app reads metadata (title, artist, album) directly from each audio file using `MediaMetadataRetriever`. With a large library this can take a minute or more. Results are cached locally, so subsequent launches are instant. Tap **Rescan media** in Settings only when you add or remove files.
+**First launch is slow.** The app reads metadata (title, artist, album) directly from each audio file using `MediaMetadataRetriever`. With a large library this can take a minute or more. Results are cached locally, so subsequent launches are instant.
+
+**Rescan is fast.** Tap **Rescan media** in Settings when you add or remove files. Only new or changed files are re-read — existing tracks are reused from cache.
 
 ## Development
 
