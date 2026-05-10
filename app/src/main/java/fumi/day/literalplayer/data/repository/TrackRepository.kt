@@ -62,10 +62,17 @@ class TrackRepository @Inject constructor(
         return fullScan(rootFolders)
     }
 
-    /** Rescan ボタン: キャッシュを無視して常にフルスキャン */
+    /** Rescan ボタン: 変更ファイルのみメタデータ再読込 */
     suspend fun rescanTracks(rootFolders: Set<String>): List<Track> {
         lastFolders = rootFolders
-        return fullScan(rootFolders)
+        _isScanning.value = true
+        val existing = cachedTracks.associateBy { it.path }
+        val tracks = scanner.scan(rootFolders, existing)
+        cachedTracks = tracks
+        _cachedTracksFlow.value = tracks
+        TrackCache.save(context, rootFolders, tracks)
+        _isScanning.value = false
+        return tracks
     }
 
     private suspend fun fullScan(rootFolders: Set<String>): List<Track> {

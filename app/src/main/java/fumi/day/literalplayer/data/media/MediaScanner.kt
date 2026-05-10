@@ -13,14 +13,28 @@ private val SUPPORTED_EXTENSIONS = setOf("mp3", "m4a", "aac", "opus", "flac", "o
 @Singleton
 class MediaScanner @Inject constructor() {
 
-    suspend fun scan(rootFolders: Set<String>): List<Track> = withContext(Dispatchers.IO) {
-        rootFolders.flatMap { path ->
-            File(path).walkTopDown()
-                .filter { it.isFile && it.extension.lowercase() in SUPPORTED_EXTENSIONS }
-                .mapNotNull { readTrack(it) }
-                .toList()
+    suspend fun scan(rootFolders: Set<String>): List<Track> =
+        scan(rootFolders, emptyMap())
+
+    suspend fun scan(rootFolders: Set<String>, existing: Map<String, Track>): List<Track> =
+        withContext(Dispatchers.IO) {
+            rootFolders.flatMap { path ->
+                File(path).walkTopDown()
+                    .filter { it.isFile && it.extension.lowercase() in SUPPORTED_EXTENSIONS }
+                    .mapNotNull { file ->
+                        val cached = existing[file.absolutePath]
+                        if (cached != null &&
+                            cached.lastModified == file.lastModified() &&
+                            cached.fileSizeBytes == file.length()
+                        ) {
+                            cached
+                        } else {
+                            readTrack(file)
+                        }
+                    }
+                    .toList()
+            }
         }
-    }
 
     private fun readTrack(file: File): Track? {
         val retriever = MediaMetadataRetriever()
