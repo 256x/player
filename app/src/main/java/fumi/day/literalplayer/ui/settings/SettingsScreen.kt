@@ -7,13 +7,13 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Slider
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,18 +40,22 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -92,6 +97,7 @@ fun SettingsScreen(
     var shortSkipText by remember(state.shortSkipSec) { mutableStateOf(state.shortSkipSec.toString()) }
     var longSkipText by remember(state.longSkipSec) { mutableStateOf(state.longSkipSec.toString()) }
     var showColorPicker by remember { mutableStateOf<ColorPickerTarget?>(null) }
+    var showPrivacyPolicy by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val folderPicker = rememberLauncherForActivityResult(
@@ -130,34 +136,39 @@ fun SettingsScreen(
                 .padding(16.dp),
         ) {
             SectionHeader("Folders")
-            state.rootFolders.sorted().forEach { folder ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(folder.substringAfterLast("/"), modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyMedium)
-                    IconButton(onClick = { viewModel.removeFolder(folder) }) {
-                        Icon(Icons.Default.Close, contentDescription = "Remove")
-                    }
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            @OptIn(ExperimentalLayoutApi::class)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                IconButton(onClick = { folderPicker.launch(null) }) {
-                    Icon(Icons.Default.Add, contentDescription = "Add folder")
+                state.rootFolders.sorted().forEach { folder ->
+                    InputChip(
+                        selected = false,
+                        onClick = { viewModel.removeFolder(folder) },
+                        label = {
+                            Text(
+                                text = folder.substringAfterLast("/"),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        trailingIcon = {
+                            Icon(Icons.Default.Close, contentDescription = "Remove",
+                                modifier = Modifier.size(16.dp))
+                        },
+                        modifier = Modifier.widthIn(max = 160.dp),
+                    )
                 }
-                Text("Add folder", style = MaterialTheme.typography.bodyMedium)
+                InputChip(
+                    selected = false,
+                    onClick = { folderPicker.launch(null) },
+                    label = { Text("+") },
+                )
             }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = viewModel::rescan,
-                modifier = Modifier.fillMaxWidth(),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-            ) {
-                Text("Rescan media", style = MaterialTheme.typography.bodyMedium)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = viewModel::rescan) {
+                    Text("Rescan media", style = MaterialTheme.typography.bodySmall)
+                }
             }
 
             Spacer(Modifier.height(16.dp))
@@ -165,29 +176,30 @@ fun SettingsScreen(
             Spacer(Modifier.height(16.dp))
 
             SectionHeader("Skip (seconds)")
-            OutlinedTextField(
-                value = shortSkipText,
-                onValueChange = {
-                    shortSkipText = it
-                    it.toIntOrNull()?.let { v -> if (v > 0) viewModel.setShortSkip(v) }
-                },
-                label = { Text("Short skip") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = longSkipText,
-                onValueChange = {
-                    longSkipText = it
-                    it.toIntOrNull()?.let { v -> if (v > 0) viewModel.setLongSkip(v) }
-                },
-                label = { Text("Long skip (long press)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = shortSkipText,
+                    onValueChange = {
+                        shortSkipText = it
+                        it.toIntOrNull()?.let { v -> if (v > 0) viewModel.setShortSkip(v) }
+                    },
+                    label = { Text("Short") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedTextField(
+                    value = longSkipText,
+                    onValueChange = {
+                        longSkipText = it
+                        it.toIntOrNull()?.let { v -> if (v > 0) viewModel.setLongSkip(v) }
+                    },
+                    label = { Text("Long press") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+            }
 
             Spacer(Modifier.height(16.dp))
             HorizontalDivider()
@@ -271,6 +283,15 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
+            Text(
+                text = "Privacy Policy",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .clickable { showPrivacyPolicy = true },
+            )
+            Spacer(Modifier.height(8.dp))
         }
     }
 
@@ -320,6 +341,36 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {},
+        )
+    }
+
+    if (showPrivacyPolicy) {
+        AlertDialog(
+            onDismissRequest = { showPrivacyPolicy = false },
+            title = { Text("Privacy Policy") },
+            text = {
+                androidx.compose.foundation.lazy.LazyColumn {
+                    item {
+                        Text(
+                            text = """We do not collect, store, or share any personal data. All app data is stored locally on your device. We have no servers and no backend.
+
+This app does not require internet access and functions entirely offline.
+
+We do not use any analytics, advertising, crash reporting, or third-party SDKs.
+
+Since we do not collect any data, there is nothing to retain or delete on our end. Uninstalling the app removes all locally stored data from your device.
+
+Our apps do not collect any personal information from anyone, including children under the age of 13.
+
+Contact: literalapps@proton.me""",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPrivacyPolicy = false }) { Text("Close") }
+            },
         )
     }
 

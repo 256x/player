@@ -54,9 +54,6 @@ fun NavGraph(
                 onArtistClick = { artistName ->
                     navController.navigate(Routes.artistDetail(artistName))
                 },
-                onArtistPlay = { tracks ->
-                    navController.navigate(Routes.player(tracks.first().id))
-                },
                 onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
                 onNavigateToPlayer = {
                     playerViewModel.state.value.track?.id?.let {

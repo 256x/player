@@ -10,9 +10,7 @@ import fumi.day.literalplayer.data.repository.FavoritesRepository
 import fumi.day.literalplayer.data.repository.TrackRepository
 import fumi.day.literalplayer.domain.model.Track
 import fumi.day.literalplayer.ui.list.TrackActionState
-import android.content.IntentSender
-import fumi.day.literalplayer.util.deleteAudioFile
-import fumi.day.literalplayer.util.mediaStoreDeleteRequest
+import fumi.day.literalplayer.util.TrackDeleteHandler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -105,41 +103,14 @@ class ArtistDetailViewModel @Inject constructor(
         }
     }
 
-    private val _pendingDeleteSender = MutableStateFlow<Pair<IntentSender, Set<String>>?>(null)
-    val pendingDeleteSender = _pendingDeleteSender.asStateFlow()
-
-    fun deleteFile(track: Track) {
-        viewModelScope.launch {
-            if (deleteAudioFile(context, track.path)) {
-                removeFromCache(setOf(track.id)); return@launch
-            }
-            val pi = mediaStoreDeleteRequest(context, listOf(track.path))
-            if (pi != null) _pendingDeleteSender.value = Pair(pi.intentSender, setOf(track.id))
-        }
-    }
-
-    fun deleteFiles(tracks: List<Track>) {
-        viewModelScope.launch {
-            val directDeleted = tracks.filter { deleteAudioFile(context, it.path) }.map { it.id }.toSet()
-            if (directDeleted.isNotEmpty()) removeFromCache(directDeleted)
-            val remaining = tracks.filter { it.id !in directDeleted }
-            if (remaining.isEmpty()) return@launch
-            val pi = mediaStoreDeleteRequest(context, remaining.map { it.path })
-            if (pi != null) _pendingDeleteSender.value = Pair(pi.intentSender, remaining.map { it.id }.toSet())
-        }
-    }
-
-    fun onDeleteConfirmed() {
-        val ids = _pendingDeleteSender.value?.second ?: return
-        _pendingDeleteSender.value = null
-        removeFromCache(ids)
-    }
-
-    fun onDeleteDismissed() { _pendingDeleteSender.value = null }
-
-    private fun removeFromCache(ids: Set<String>) {
+    private val deleteHandler = TrackDeleteHandler(context, viewModelScope) { ids ->
         val updated = trackRepository.getCached().filter { it.id !in ids }
         trackRepository.updateCached(updated)
         trackRepository.setPlaylist(trackRepository.currentPlaylist.filter { it.id !in ids })
     }
+    val pendingDeleteSender = deleteHandler.pendingDeleteSender
+    fun deleteFile(track: Track) = deleteHandler.deleteFile(track)
+    fun deleteFiles(tracks: List<Track>) = deleteHandler.deleteFiles(tracks)
+    fun onDeleteConfirmed() = deleteHandler.onDeleteConfirmed()
+    fun onDeleteDismissed() = deleteHandler.onDeleteDismissed()
 }

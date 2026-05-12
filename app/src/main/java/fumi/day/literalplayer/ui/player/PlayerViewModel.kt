@@ -21,6 +21,7 @@ import fumi.day.literalplayer.domain.model.displayArtist
 import fumi.day.literalplayer.domain.model.displayTitle
 import fumi.day.literalplayer.service.PlayerService
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -53,7 +54,7 @@ class PlayerViewModel @Inject constructor(
     val state = _state.asStateFlow()
 
     val prefs = userPreferences.prefs.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000),
+        viewModelScope, SharingStarted.Eagerly,
         fumi.day.literalplayer.data.prefs.UserPrefs()
     )
 
@@ -121,7 +122,7 @@ class PlayerViewModel @Inject constructor(
 
     private fun startProgressTracking() {
         viewModelScope.launch {
-            while (true) {
+            while (isActive) {
                 controller?.let { c ->
                     _state.value = _state.value.copy(
                         isPlaying = c.isPlaying,
