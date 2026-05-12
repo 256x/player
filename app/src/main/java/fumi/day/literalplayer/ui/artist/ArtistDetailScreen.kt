@@ -1,5 +1,9 @@
 package fumi.day.literalplayer.ui.artist
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -72,6 +76,18 @@ fun ArtistDetailScreen(
     var showMultiNewPlaylistDialog by remember { mutableStateOf(false) }
     var confirmDeleteTrack by remember { mutableStateOf<Track?>(null) }
     var confirmDeleteSelected by remember { mutableStateOf(false) }
+    val pendingDeleteSender by viewModel.pendingDeleteSender.collectAsState()
+    val deleteRequestLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) viewModel.onDeleteConfirmed()
+        else viewModel.onDeleteDismissed()
+    }
+    LaunchedEffect(pendingDeleteSender) {
+        pendingDeleteSender?.let {
+            deleteRequestLauncher.launch(IntentSenderRequest.Builder(it.first).build())
+        }
+    }
 
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     val isSelecting = selectedIds.isNotEmpty()

@@ -1,9 +1,11 @@
 package fumi.day.literalplayer.ui.setup
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -45,6 +47,7 @@ fun SetupScreen(
     val folders by viewModel.folders.collectAsState()
     val pendingSubfolders by viewModel.pendingSubfolders.collectAsState()
     val checkedSubfolders by viewModel.checkedSubfolders.collectAsState()
+    val context = LocalContext.current
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -53,7 +56,12 @@ fun SetupScreen(
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
-        uri?.let { safUriToPath(it) }?.let { viewModel.scanAndShowSubfolders(it) }
+        uri?.let {
+            context.contentResolver.takePersistableUriPermission(
+                it, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            safUriToPath(it)?.let { path -> viewModel.scanAndShowSubfolders(path) }
+        }
     }
 
     Column(
