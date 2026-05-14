@@ -11,6 +11,7 @@ import fumi.day.literalplayer.data.repository.FavoritesRepository
 import fumi.day.literalplayer.data.repository.TrackRepository
 import fumi.day.literalplayer.domain.model.SortOrder
 import fumi.day.literalplayer.domain.model.Track
+import fumi.day.literalplayer.ui.shared.PlaylistActionDelegate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,12 +24,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class TrackActionState(
-    val track: Track,
-    val playlistId: Long? = null,
-    val playlistName: String? = null,
-)
-
 @HiltViewModel
 class TrackListViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -37,8 +32,7 @@ class TrackListViewModel @Inject constructor(
     private val userPreferences: UserPreferences,
 ) : ViewModel() {
 
-    private val _tracks = MutableStateFlow<List<Track>>(emptyList())
-    val tracks = _tracks.asStateFlow()
+    val tracks = trackRepository.cachedTracksFlow
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
@@ -58,7 +52,7 @@ class TrackListViewModel @Inject constructor(
     private val _selectedFolder = MutableStateFlow<String?>(null)
     val selectedFolder = _selectedFolder.asStateFlow()
 
-    val filteredTracks = combine(_tracks, _searchQuery, _selectedFolder) { tracks, query, folder ->
+    val filteredTracks = combine(trackRepository.cachedTracksFlow, _searchQuery, _selectedFolder) { tracks, query, folder ->
         val byFolder = if (folder != null) tracks.filter { it.path.startsWith(folder) } else tracks
         val q = query.trim().lowercase()
         if (q.isBlank()) byFolder
@@ -70,62 +64,20 @@ class TrackListViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Single-track action sheet
-    private val _trackAction = MutableStateFlow<TrackActionState?>(null)
-    val trackAction = _trackAction.asStateFlow()
+    private val playlistDelegate = PlaylistActionDelegate(favoritesRepository, viewModelScope)
+    val trackAction = playlistDelegate.trackAction
+    val trackMemberOf = playlistDelegate.trackMemberOf
+    val multiPlaylistSheetTracks = playlistDelegate.multiPlaylistSheetTracks
 
-    private val _trackMemberOf = MutableStateFlow<Set<Long>>(emptySet())
-    val trackMemberOf = _trackMemberOf.asStateFlow()
-
-    fun showTrackAction(track: Track, playlistId: Long? = null, playlistName: String? = null) {
-        _trackAction.value = TrackActionState(track, playlistId, playlistName)
-        viewModelScope.launch {
-            _trackMemberOf.value = favoritesRepository.getListIdsForTrack(track.id).toSet()
-        }
-    }
-
-    fun hideTrackAction() {
-        _trackAction.value = null
-        _trackMemberOf.value = emptySet()
-    }
-
-    fun toggleTrackInPlaylist(listId: Long, track: Track) {
-        viewModelScope.launch {
-            if (listId in _trackMemberOf.value) {
-                favoritesRepository.removeTrack(listId, track.id)
-                _trackMemberOf.value = _trackMemberOf.value - listId
-            } else {
-                favoritesRepository.addTrack(listId, track)
-                _trackMemberOf.value = _trackMemberOf.value + listId
-            }
-        }
-    }
-
-    fun createPlaylistAndAdd(name: String, track: Track) {
-        viewModelScope.launch {
-            val id = favoritesRepository.createList(name)
-            favoritesRepository.addTrack(id, track)
-            _trackMemberOf.value = _trackMemberOf.value + id
-        }
-    }
-
-    // Multi-select playlist sheet
-    private val _multiPlaylistSheetTracks = MutableStateFlow<List<Track>>(emptyList())
-    val multiPlaylistSheetTracks = _multiPlaylistSheetTracks.asStateFlow()
-
-    fun showMultiPlaylistSheet(tracks: List<Track>) { _multiPlaylistSheetTracks.value = tracks }
-    fun hideMultiPlaylistSheet() { _multiPlaylistSheetTracks.value = emptyList() }
-
-    fun addAllToPlaylist(listId: Long, tracks: List<Track>) {
-        viewModelScope.launch { tracks.forEach { favoritesRepository.addTrack(listId, it) } }
-    }
-
-    fun createPlaylistAndAddAll(name: String, tracks: List<Track>) {
-        viewModelScope.launch {
-            val id = favoritesRepository.createList(name)
-            tracks.forEach { favoritesRepository.addTrack(id, it) }
-        }
-    }
+    fun showTrackAction(track: Track, playlistId: Long? = null, playlistName: String? = null) =
+        playlistDelegate.showTrackAction(track, playlistId, playlistName)
+    fun hideTrackAction() = playlistDelegate.hideTrackAction()
+    fun toggleTrackInPlaylist(listId: Long, track: Track) = playlistDelegate.toggleTrackInPlaylist(listId, track)
+    fun createPlaylistAndAdd(name: String, track: Track) = playlistDelegate.createPlaylistAndAdd(name, track)
+    fun showMultiPlaylistSheet(tracks: List<Track>) = playlistDelegate.showMultiPlaylistSheet(tracks)
+    fun hideMultiPlaylistSheet() = playlistDelegate.hideMultiPlaylistSheet()
+    fun addAllToPlaylist(listId: Long, tracks: List<Track>) = playlistDelegate.addAllToPlaylist(listId, tracks)
+    fun createPlaylistAndAddAll(name: String, tracks: List<Track>) = playlistDelegate.createPlaylistAndAddAll(name, tracks)
 
     fun updatePlaylist(tracks: List<Track>) { trackRepository.setPlaylist(tracks) }
 
@@ -152,8 +104,7 @@ class TrackListViewModel @Inject constructor(
     }
 
     private val deleteHandler = TrackDeleteHandler(context, viewModelScope) { ids ->
-        val updated = _tracks.value.filter { it.id !in ids }
-        _tracks.value = updated
+        val updated = trackRepository.getCached().filter { it.id !in ids }
         trackRepository.updateCached(updated)
         trackRepository.setPlaylist(trackRepository.currentPlaylist.filter { it.id !in ids })
     }
@@ -177,7 +128,7 @@ class TrackListViewModel @Inject constructor(
                 val folders = prefs.value.rootFolders
                 if (folders.isNotEmpty()) {
                     _isLoading.value = true
-                    _tracks.value = trackRepository.rescanTracks(folders)
+                    trackRepository.rescanTracks(folders)
                     _isLoading.value = false
                 }
             }
@@ -186,7 +137,7 @@ class TrackListViewModel @Inject constructor(
 
     private suspend fun loadTracks(folders: Set<String>) {
         _isLoading.value = true
-        _tracks.value = trackRepository.loadTracks(folders)
+        trackRepository.loadTracks(folders)
         _isLoading.value = false
     }
 

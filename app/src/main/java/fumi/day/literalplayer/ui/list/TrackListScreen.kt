@@ -47,7 +47,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
@@ -55,7 +54,6 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -76,6 +74,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import fumi.day.literalplayer.domain.model.FavoritesList
 import fumi.day.literalplayer.domain.model.SortOrder
+import fumi.day.literalplayer.ui.shared.MultiPlaylistSheet
+import fumi.day.literalplayer.ui.shared.TrackActionSheet
 import fumi.day.literalplayer.ui.player.PlayerViewModel
 import fumi.day.literalplayer.domain.model.Track
 import fumi.day.literalplayer.domain.model.displayAlbum
@@ -341,58 +341,20 @@ fun TrackListScreen(
         }
     }
 
-    // Unified track action sheet
     trackAction?.let { action ->
-        ModalBottomSheet(
-            onDismissRequest = viewModel::hideTrackAction,
-            sheetState = rememberModalBottomSheetState(),
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(action.track.displayTitle, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(16.dp))
-                if (action.playlistId != null) {
-                    HorizontalDivider()
-                    TextButton(
-                        onClick = {
-                            viewModel.removeFromPlaylist(action.playlistId, action.track.id)
-                            viewModel.hideTrackAction()
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("✕ Remove from \"${action.playlistName}\"") }
-                }
-                HorizontalDivider()
-                TextButton(onClick = { showNewPlaylistDialog = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text("+ New playlist")
-                }
-                HorizontalDivider()
-                favoritesLists.forEach { list ->
-                    val isMember = list.id in trackMemberOf
-                    TextButton(
-                        onClick = { viewModel.toggleTrackInPlaylist(list.id, action.track) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                if (isMember) "✓ " else "    ",
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Text(list.name)
-                        }
-                    }
-                }
-                HorizontalDivider()
-                TextButton(
-                    onClick = { selectedIds = setOf(action.track.id); viewModel.hideTrackAction() },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Select multiple") }
-                HorizontalDivider()
-                TextButton(
-                    onClick = { viewModel.hideTrackAction(); confirmDeleteTrack = action.track },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Delete file", color = Color(0xFFCF6679)) }
-                Spacer(Modifier.height(32.dp))
-            }
-        }
+        TrackActionSheet(
+            action = action,
+            trackMemberOf = trackMemberOf,
+            favoritesLists = favoritesLists,
+            onDismiss = viewModel::hideTrackAction,
+            onNewPlaylist = { showNewPlaylistDialog = true },
+            onTogglePlaylist = { viewModel.toggleTrackInPlaylist(it, action.track) },
+            onSelectMultiple = { selectedIds = setOf(action.track.id); viewModel.hideTrackAction() },
+            onDeleteFile = { viewModel.hideTrackAction(); confirmDeleteTrack = action.track },
+            onRemoveFromPlaylist = if (action.playlistId != null) {
+                { viewModel.removeFromPlaylist(action.playlistId, action.track.id); viewModel.hideTrackAction() }
+            } else null,
+        )
     }
 
     if (showNewPlaylistDialog) {
@@ -459,31 +421,17 @@ fun TrackListScreen(
     }
 
     if (multiPlaylistTracks.isNotEmpty()) {
-        ModalBottomSheet(
-            onDismissRequest = viewModel::hideMultiPlaylistSheet,
-            sheetState = rememberModalBottomSheetState(),
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("${multiPlaylistTracks.size} tracks", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(16.dp))
-                HorizontalDivider()
-                TextButton(onClick = { showMultiNewPlaylistDialog = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text("+ New playlist")
-                }
-                HorizontalDivider()
-                favoritesLists.forEach { list ->
-                    TextButton(
-                        onClick = {
-                            viewModel.addAllToPlaylist(list.id, multiPlaylistTracks)
-                            viewModel.hideMultiPlaylistSheet()
-                            selectedIds = emptySet()
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(list.name) }
-                }
-                Spacer(Modifier.height(32.dp))
-            }
-        }
+        MultiPlaylistSheet(
+            trackCount = multiPlaylistTracks.size,
+            favoritesLists = favoritesLists,
+            onDismiss = viewModel::hideMultiPlaylistSheet,
+            onNewPlaylist = { showMultiNewPlaylistDialog = true },
+            onAddToPlaylist = {
+                viewModel.addAllToPlaylist(it, multiPlaylistTracks)
+                viewModel.hideMultiPlaylistSheet()
+                selectedIds = emptySet()
+            },
+        )
     }
 
     if (showMultiNewPlaylistDialog) {

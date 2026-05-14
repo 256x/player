@@ -9,14 +9,12 @@ import fumi.day.literalplayer.data.prefs.UserPreferences
 import fumi.day.literalplayer.data.repository.FavoritesRepository
 import fumi.day.literalplayer.data.repository.TrackRepository
 import fumi.day.literalplayer.domain.model.Track
-import fumi.day.literalplayer.ui.list.TrackActionState
+import fumi.day.literalplayer.ui.shared.PlaylistActionDelegate
 import fumi.day.literalplayer.util.TrackDeleteHandler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -46,62 +44,19 @@ class ArtistDetailViewModel @Inject constructor(
 
     fun updatePlaylist(tracks: List<Track>) { trackRepository.setPlaylist(tracks) }
 
-    // Single-track action sheet
-    private val _trackAction = MutableStateFlow<TrackActionState?>(null)
-    val trackAction = _trackAction.asStateFlow()
+    private val playlistDelegate = PlaylistActionDelegate(favoritesRepository, viewModelScope)
+    val trackAction = playlistDelegate.trackAction
+    val trackMemberOf = playlistDelegate.trackMemberOf
+    val multiPlaylistSheetTracks = playlistDelegate.multiPlaylistSheetTracks
 
-    private val _trackMemberOf = MutableStateFlow<Set<Long>>(emptySet())
-    val trackMemberOf = _trackMemberOf.asStateFlow()
-
-    fun showTrackAction(track: Track) {
-        _trackAction.value = TrackActionState(track)
-        viewModelScope.launch {
-            _trackMemberOf.value = favoritesRepository.getListIdsForTrack(track.id).toSet()
-        }
-    }
-
-    fun hideTrackAction() {
-        _trackAction.value = null
-        _trackMemberOf.value = emptySet()
-    }
-
-    fun toggleTrackInPlaylist(listId: Long, track: Track) {
-        viewModelScope.launch {
-            if (listId in _trackMemberOf.value) {
-                favoritesRepository.removeTrack(listId, track.id)
-                _trackMemberOf.value = _trackMemberOf.value - listId
-            } else {
-                favoritesRepository.addTrack(listId, track)
-                _trackMemberOf.value = _trackMemberOf.value + listId
-            }
-        }
-    }
-
-    fun createPlaylistAndAdd(name: String, track: Track) {
-        viewModelScope.launch {
-            val id = favoritesRepository.createList(name)
-            favoritesRepository.addTrack(id, track)
-            _trackMemberOf.value = _trackMemberOf.value + id
-        }
-    }
-
-    // Multi-select playlist sheet
-    private val _multiPlaylistSheetTracks = MutableStateFlow<List<Track>>(emptyList())
-    val multiPlaylistSheetTracks = _multiPlaylistSheetTracks.asStateFlow()
-
-    fun showMultiPlaylistSheet(tracks: List<Track>) { _multiPlaylistSheetTracks.value = tracks }
-    fun hideMultiPlaylistSheet() { _multiPlaylistSheetTracks.value = emptyList() }
-
-    fun addAllToPlaylist(listId: Long, tracks: List<Track>) {
-        viewModelScope.launch { tracks.forEach { favoritesRepository.addTrack(listId, it) } }
-    }
-
-    fun createPlaylistAndAddAll(name: String, tracks: List<Track>) {
-        viewModelScope.launch {
-            val id = favoritesRepository.createList(name)
-            tracks.forEach { favoritesRepository.addTrack(id, it) }
-        }
-    }
+    fun showTrackAction(track: Track) = playlistDelegate.showTrackAction(track)
+    fun hideTrackAction() = playlistDelegate.hideTrackAction()
+    fun toggleTrackInPlaylist(listId: Long, track: Track) = playlistDelegate.toggleTrackInPlaylist(listId, track)
+    fun createPlaylistAndAdd(name: String, track: Track) = playlistDelegate.createPlaylistAndAdd(name, track)
+    fun showMultiPlaylistSheet(tracks: List<Track>) = playlistDelegate.showMultiPlaylistSheet(tracks)
+    fun hideMultiPlaylistSheet() = playlistDelegate.hideMultiPlaylistSheet()
+    fun addAllToPlaylist(listId: Long, tracks: List<Track>) = playlistDelegate.addAllToPlaylist(listId, tracks)
+    fun createPlaylistAndAddAll(name: String, tracks: List<Track>) = playlistDelegate.createPlaylistAndAddAll(name, tracks)
 
     private val deleteHandler = TrackDeleteHandler(context, viewModelScope) { ids ->
         val updated = trackRepository.getCached().filter { it.id !in ids }

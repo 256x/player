@@ -31,7 +31,6 @@ class TrackRepository @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private var cachedTracks: List<Track> = emptyList()
     private val _cachedTracksFlow = MutableStateFlow<List<Track>>(emptyList())
     val cachedTracksFlow: StateFlow<List<Track>> = _cachedTracksFlow.asStateFlow()
 
@@ -55,7 +54,6 @@ class TrackRepository @Inject constructor(
         lastFolders = rootFolders
         val cached = TrackCache.load(context, rootFolders)
         if (cached != null) {
-            cachedTracks = cached
             _cachedTracksFlow.value = cached
             return cached
         }
@@ -63,38 +61,34 @@ class TrackRepository @Inject constructor(
     }
 
     /** Rescan ボタン: 変更ファイルのみメタデータ再読込 */
-    suspend fun rescanTracks(rootFolders: Set<String>): List<Track> {
+    suspend fun rescanTracks(rootFolders: Set<String>) {
         lastFolders = rootFolders
         _isScanning.value = true
-        val existing = cachedTracks.associateBy { it.path }
+        val existing = _cachedTracksFlow.value.associateBy { it.path }
         val tracks = scanner.scan(rootFolders, existing)
-        cachedTracks = tracks
         _cachedTracksFlow.value = tracks
         TrackCache.save(context, rootFolders, tracks)
         _isScanning.value = false
-        return tracks
     }
 
     private suspend fun fullScan(rootFolders: Set<String>): List<Track> {
         _isScanning.value = true
         val tracks = scanner.scan(rootFolders)
-        cachedTracks = tracks
         _cachedTracksFlow.value = tracks
         TrackCache.save(context, rootFolders, tracks)
         _isScanning.value = false
         return tracks
     }
 
-    /** 削除など部分更新: メモリとキャッシュファイルを同時に更新 */
+    /** 削除など部分更新: キャッシュを同期更新 */
     fun updateCached(tracks: List<Track>) {
-        cachedTracks = tracks
         _cachedTracksFlow.value = tracks
         if (lastFolders.isNotEmpty()) {
             scope.launch { TrackCache.save(context, lastFolders, tracks) }
         }
     }
 
-    fun getCached(): List<Track> = cachedTracks
+    fun getCached(): List<Track> = _cachedTracksFlow.value
 
     fun sorted(tracks: List<Track>, order: SortOrder): List<Track> = when (order) {
         SortOrder.NAME -> tracks.sortedBy { it.displayTitle.lowercase() }
