@@ -2,6 +2,10 @@ package fumi.day.literalplayer.ui.player
 
 import android.content.ComponentName
 import android.content.Context
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
@@ -20,6 +24,7 @@ import fumi.day.literalplayer.domain.model.displayAlbum
 import fumi.day.literalplayer.domain.model.displayArtist
 import fumi.day.literalplayer.domain.model.displayTitle
 import fumi.day.literalplayer.service.PlayerService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,6 +57,9 @@ class PlayerViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(PlayerUiState())
     val state = _state.asStateFlow()
+
+    private val _albumArt = MutableStateFlow<ImageBitmap?>(null)
+    val albumArt = _albumArt.asStateFlow()
 
     val prefs = userPreferences.prefs.stateIn(
         viewModelScope, SharingStarted.Eagerly,
@@ -91,6 +99,7 @@ class PlayerViewModel @Inject constructor(
         val playlist = trackRepository.currentPlaylist.ifEmpty { listOf(track) }
         val startIndex = playlist.indexOfFirst { it.id == trackId }.let { if (it < 0) 0 else it }
         _state.value = _state.value.copy(track = track, speedIndex = 1)
+        loadAlbumArt(track.path)
 
         val token = SessionToken(context, ComponentName(context, PlayerService::class.java))
         controllerFuture?.let { MediaController.releaseFuture(it) }
@@ -112,12 +121,29 @@ class PlayerViewModel @Inject constructor(
                         val idx = c.currentMediaItemIndex
                         if (idx >= 0 && idx < playlist.size) {
                             _state.value = _state.value.copy(track = playlist[idx])
+                            loadAlbumArt(playlist[idx].path)
                         }
                     }
                 })
                 startProgressTracking()
             }
         }, MoreExecutors.directExecutor())
+    }
+
+    private fun loadAlbumArt(path: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val retriever = MediaMetadataRetriever()
+            _albumArt.value = try {
+                retriever.setDataSource(path)
+                retriever.embeddedPicture?.let {
+                    BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap()
+                }
+            } catch (_: Exception) {
+                null
+            } finally {
+                retriever.release()
+            }
+        }
     }
 
     private fun startProgressTracking() {

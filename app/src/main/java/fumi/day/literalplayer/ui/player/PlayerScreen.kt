@@ -51,8 +51,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import fumi.day.literalplayer.domain.model.displayAlbum
 import fumi.day.literalplayer.domain.model.displayArtist
 import fumi.day.literalplayer.domain.model.displayTitle
@@ -70,6 +74,8 @@ fun PlayerScreen(
     viewModel: PlayerViewModel,
 ) {
     val state by viewModel.state.collectAsState()
+    val prefs by viewModel.prefs.collectAsState()
+    val albumArt by viewModel.albumArt.collectAsState()
     val favoritesLists by viewModel.favoritesLists.collectAsState()
     val showFavSheet by viewModel.showFavSheet.collectAsState()
     var showSpeedMenu by remember { mutableStateOf(false) }
@@ -94,37 +100,47 @@ fun PlayerScreen(
                 .fillMaxSize()
                 .padding(horizontal = 24.dp),
         ) {
-            // Title zone: weight(1f) so it absorbs all slack.
-            // BottomStart pins the text to the bottom edge — title grows upward,
-            // so the seekbar's position never shifts when lines wrap.
-            Box(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentAlignment = Alignment.BottomStart,
-            ) {
+            // Title zone: weight(1f) absorbs all slack.
+            // Art (if enabled) takes weight(1f) inside, text stays at the bottom.
+            // When title wraps to 2 lines, art shrinks — seekbar position never shifts.
+            Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                val showArt = prefs.showAlbumArt && albumArt != null
+                if (showArt) {
+                    Image(
+                        bitmap = albumArt!!,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Fit,
+                    )
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
                 state.track?.let { track ->
-                    Column {
-                        Text(
-                            track.displayTitle,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            track.displayArtist,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            "${track.displayAlbum}${if (track.year.isNotBlank()) " · ${track.year}" else ""}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+                    Text(
+                        track.displayTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        track.displayArtist,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        "${track.displayAlbum}${if (track.year.isNotBlank()) " · ${track.year}" else ""}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
 

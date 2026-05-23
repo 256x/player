@@ -48,5 +48,6 @@ class SettingsViewModel @Inject constructor(
     fun setFont(font: AppFont) { viewModelScope.launch { prefs.setFont(font) } }
     fun setFontSize(size: Float) { viewModelScope.launch { prefs.setFontSize(size.coerceIn(12f, 24f)) } }
     fun setNormalize(enabled: Boolean) { viewModelScope.launch { prefs.setNormalize(enabled) } }
+    fun setShowAlbumArt(enabled: Boolean) { viewModelScope.launch { prefs.setShowAlbumArt(enabled) } }
     fun rescan() { trackRepository.triggerRescan() }
 }

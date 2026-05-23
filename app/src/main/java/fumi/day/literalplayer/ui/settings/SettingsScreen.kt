@@ -255,6 +255,21 @@ fun SettingsScreen(
                 }
                 Switch(checked = state.normalize, onCheckedChange = viewModel::setNormalize)
             }
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Album art", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "Show embedded artwork in player",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = state.showAlbumArt, onCheckedChange = viewModel::setShowAlbumArt)
+            }
 
             Spacer(Modifier.height(16.dp))
             HorizontalDivider()

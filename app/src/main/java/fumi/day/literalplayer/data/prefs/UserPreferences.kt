@@ -32,6 +32,7 @@ data class UserPrefs(
     val font: AppFont = AppFont.DEFAULT,
     val fontSize: Float = 16f,
     val normalize: Boolean = false,
+    val showAlbumArt: Boolean = false,
 )
 
 @Singleton
@@ -46,6 +47,7 @@ class UserPreferences @Inject constructor(private val context: Context) {
     private val fontKey = stringPreferencesKey("font")
     private val fontSizeKey = floatPreferencesKey("font_size")
     private val normalizeKey = booleanPreferencesKey("normalize")
+    private val showAlbumArtKey = booleanPreferencesKey("show_album_art")
 
     val prefs: Flow<UserPrefs> = context.dataStore.data.map { p ->
         UserPrefs(
@@ -59,6 +61,7 @@ class UserPreferences @Inject constructor(private val context: Context) {
             font = AppFont.entries.find { it.name == p[fontKey] } ?: AppFont.DEFAULT,
             fontSize = p[fontSizeKey] ?: 16f,
             normalize = p[normalizeKey] ?: false,
+            showAlbumArt = p[showAlbumArtKey] ?: false,
         )
     }
 
@@ -112,5 +115,9 @@ class UserPreferences @Inject constructor(private val context: Context) {
 
     suspend fun setNormalize(enabled: Boolean) {
         context.dataStore.edit { it[normalizeKey] = enabled }
+    }
+
+    suspend fun setShowAlbumArt(enabled: Boolean) {
+        context.dataStore.edit { it[showAlbumArtKey] = enabled }
     }
 }
