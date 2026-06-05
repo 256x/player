@@ -124,6 +124,22 @@ class PlayerViewModel @Inject constructor(
                             loadAlbumArt(playlist[idx].path)
                         }
                     }
+
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        _state.value = _state.value.copy(isPlaying = isPlaying)
+                        if (!isPlaying && c.currentPosition > 0) {
+                            viewModelScope.launch {
+                                trackRepository.savePosition(
+                                    _state.value.track?.id ?: return@launch,
+                                    c.currentPosition,
+                                )
+                            }
+                        }
+                    }
+
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        _state.value = _state.value.copy(durationMs = c.duration.coerceAtLeast(0L))
+                    }
                 })
                 startProgressTracking()
             }
@@ -149,17 +165,12 @@ class PlayerViewModel @Inject constructor(
     private fun startProgressTracking() {
         viewModelScope.launch {
             while (isActive) {
-                controller?.let { c ->
-                    _state.value = _state.value.copy(
-                        isPlaying = c.isPlaying,
-                        positionMs = c.currentPosition,
-                        durationMs = c.duration.coerceAtLeast(0L),
-                    )
-                    if (!c.isPlaying && c.currentPosition > 0) {
-                        trackRepository.savePosition(_state.value.track?.id ?: return@let, c.currentPosition)
+                if (_state.value.isPlaying) {
+                    controller?.let { c ->
+                        _state.value = _state.value.copy(positionMs = c.currentPosition)
                     }
                 }
-                delay(100)
+                delay(200)
             }
         }
     }
