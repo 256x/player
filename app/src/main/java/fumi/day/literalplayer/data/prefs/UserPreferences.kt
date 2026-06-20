@@ -33,6 +33,8 @@ data class UserPrefs(
     val fontSize: Float = 16f,
     val normalize: Boolean = false,
     val showAlbumArt: Boolean = false,
+    val lastTab: Int = 0,
+    val lastFolder: String? = null,
 )
 
 @Singleton
@@ -48,6 +50,8 @@ class UserPreferences @Inject constructor(private val context: Context) {
     private val fontSizeKey = floatPreferencesKey("font_size")
     private val normalizeKey = booleanPreferencesKey("normalize")
     private val showAlbumArtKey = booleanPreferencesKey("show_album_art")
+    private val lastTabKey = intPreferencesKey("last_tab")
+    private val lastFolderKey = stringPreferencesKey("last_folder")
 
     val prefs: Flow<UserPrefs> = context.dataStore.data.map { p ->
         UserPrefs(
@@ -62,6 +66,8 @@ class UserPreferences @Inject constructor(private val context: Context) {
             fontSize = p[fontSizeKey] ?: 16f,
             normalize = p[normalizeKey] ?: false,
             showAlbumArt = p[showAlbumArtKey] ?: false,
+            lastTab = p[lastTabKey] ?: 0,
+            lastFolder = p[lastFolderKey]?.takeIf { it.isNotEmpty() },
         )
     }
 
@@ -119,5 +125,13 @@ class UserPreferences @Inject constructor(private val context: Context) {
 
     suspend fun setShowAlbumArt(enabled: Boolean) {
         context.dataStore.edit { it[showAlbumArtKey] = enabled }
+    }
+
+    suspend fun setLastTab(tab: Int) {
+        context.dataStore.edit { it[lastTabKey] = tab }
+    }
+
+    suspend fun setLastFolder(folder: String?) {
+        context.dataStore.edit { it[lastFolderKey] = folder ?: "" }
     }
 }

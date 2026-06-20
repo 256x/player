@@ -57,10 +57,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -104,8 +102,7 @@ fun TrackListScreen(
     val favoritesLists by viewModel.favoritesLists.collectAsState()
     val trackAction by viewModel.trackAction.collectAsState()
     val trackMemberOf by viewModel.trackMemberOf.collectAsState()
-
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    val selectedTab by viewModel.selectedTab.collectAsState()
     var showSortMenu by remember { mutableStateOf(false) }
     var showFolderMenu by remember { mutableStateOf(false) }
     var newListName by remember { mutableStateOf("") }
@@ -204,7 +201,7 @@ fun TrackListScreen(
                 HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
                 TabRow(selectedTabIndex = selectedTab) {
                     TABS.forEachIndexed { i, title ->
-                        Tab(selected = selectedTab == i, onClick = { selectedTab = i },
+                        Tab(selected = selectedTab == i, onClick = { viewModel.selectTab(i) },
                             text = { Text(title, style = MaterialTheme.typography.bodyMedium) })
                     }
                 }

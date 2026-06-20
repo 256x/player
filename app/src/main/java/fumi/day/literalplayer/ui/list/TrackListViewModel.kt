@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -48,6 +49,9 @@ class TrackListViewModel @Inject constructor(
     val favoritesLists = favoritesRepository.lists.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList()
     )
+
+    private val _selectedTab = MutableStateFlow(0)
+    val selectedTab = _selectedTab.asStateFlow()
 
     private val _selectedFolder = MutableStateFlow<String?>(null)
     val selectedFolder = _selectedFolder.asStateFlow()
@@ -116,6 +120,11 @@ class TrackListViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            val initial = userPreferences.prefs.first()
+            _selectedTab.value = initial.lastTab
+            _selectedFolder.value = initial.lastFolder
+        }
+        viewModelScope.launch {
             userPreferences.prefs
                 .map { it.rootFolders }
                 .distinctUntilChanged()
@@ -149,7 +158,16 @@ class TrackListViewModel @Inject constructor(
     }
 
     fun setSearch(query: String) { _searchQuery.value = query }
-    fun selectFolder(folder: String?) { _selectedFolder.value = folder }
+
+    fun selectTab(tab: Int) {
+        _selectedTab.value = tab
+        viewModelScope.launch { userPreferences.setLastTab(tab) }
+    }
+
+    fun selectFolder(folder: String?) {
+        _selectedFolder.value = folder
+        viewModelScope.launch { userPreferences.setLastFolder(folder) }
+    }
 
     fun setSortOrder(order: SortOrder) {
         viewModelScope.launch { userPreferences.setSortOrder(order) }
