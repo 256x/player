@@ -12,6 +12,7 @@ data class Track(
     val fileSizeBytes: Long,
     val mimeType: String,
     val lastModified: Long,
+    val trackNumber: Int = 0,
 )
 
 val Track.displayTitle: String get() = title.ifBlank { fileName }

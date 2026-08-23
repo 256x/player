@@ -53,6 +53,9 @@ class MediaScanner @Inject constructor() {
                 fileSizeBytes = file.length(),
                 mimeType = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE) ?: "",
                 lastModified = file.lastModified(),
+                trackNumber = parseTrackNumber(
+                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)
+                ) ?: parseLeadingNumber(file.name) ?: 0,
             )
         } catch (e: Exception) {
             null
@@ -60,4 +63,13 @@ class MediaScanner @Inject constructor() {
             retriever.release()
         }
     }
+
+    /** ID3 TRCK は "3" or "3/12" 形式 */
+    private fun parseTrackNumber(raw: String?): Int? =
+        raw?.substringBefore('/')?.trim()?.toIntOrNull()?.takeIf { it > 0 }
+
+    /** タグが無い場合のフォールバック: ファイル名先頭の "01 " 等を拾う */
+    private fun parseLeadingNumber(fileName: String): Int? =
+        Regex("""^(\d{1,3})[\s._-]""").find(fileName)?.groupValues?.get(1)?.toIntOrNull()
+            ?.takeIf { it > 0 }
 }

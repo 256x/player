@@ -10,9 +10,13 @@ import org.json.JSONObject
 object TrackCache {
     private const val FILE = "track_cache.json"
 
+    // trackNumber 追加時に上げる。ロード時に不一致なら強制フルスキャン
+    private const val CACHE_VERSION = 2
+
     suspend fun save(context: Context, folders: Set<String>, tracks: List<Track>) =
         withContext(Dispatchers.IO) {
             val root = JSONObject()
+            root.put("cacheVersion", CACHE_VERSION)
             val fArr = JSONArray()
             folders.sorted().forEach { fArr.put(it) }
             root.put("folders", fArr)
@@ -30,6 +34,7 @@ object TrackCache {
                     put("fileSizeBytes", t.fileSizeBytes)
                     put("mimeType", t.mimeType)
                     put("lastModified", t.lastModified)
+                    put("trackNumber", t.trackNumber)
                 })
             }
             root.put("tracks", tArr)
@@ -42,6 +47,7 @@ object TrackCache {
             if (!file.exists()) return@withContext null
             runCatching {
                 val root = JSONObject(file.readText())
+                if (root.optInt("cacheVersion", 0) != CACHE_VERSION) return@withContext null
                 val fArr = root.getJSONArray("folders")
                 val cached = (0 until fArr.length()).map { fArr.getString(it) }.toSet()
                 if (cached != folders) return@withContext null
@@ -60,6 +66,7 @@ object TrackCache {
                             fileSizeBytes = o.getLong("fileSizeBytes"),
                             mimeType     = o.getString("mimeType"),
                             lastModified = o.getLong("lastModified"),
+                            trackNumber  = o.optInt("trackNumber", 0),
                         )
                     }
                 }

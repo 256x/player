@@ -99,14 +99,18 @@ class TrackRepository @Inject constructor(
     fun groupedByArtist(tracks: List<Track>): Map<String, List<Track>> =
         tracks.groupBy { it.displayArtist }.toSortedMap()
 
+    private fun List<Track>.inAlbumOrder(): List<Track> =
+        sortedWith(compareBy({ if (it.trackNumber > 0) it.trackNumber else Int.MAX_VALUE }, { it.fileName }))
+
     fun groupedByAlbum(tracks: List<Track>): Map<String, Pair<String, List<Track>>> =
         tracks.groupBy { it.displayAlbum }
-            .mapValues { (_, v) -> Pair(v.first().displayArtist, v) }
+            .mapValues { (_, v) -> Pair(v.first().displayArtist, v.inAlbumOrder()) }
             .toSortedMap()
 
     fun tracksForArtist(tracks: List<Track>, artist: String): Map<String, List<Track>> =
         tracks.filter { it.displayArtist == artist }
             .groupBy { it.displayAlbum }
+            .mapValues { (_, v) -> v.inAlbumOrder() }
             .toSortedMap()
 
     suspend fun savePosition(trackId: String, positionMs: Long) {
