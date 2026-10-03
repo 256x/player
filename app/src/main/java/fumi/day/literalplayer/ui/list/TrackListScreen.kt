@@ -74,7 +74,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import fumi.day.literalplayer.domain.model.FavoritesList
 import fumi.day.literalplayer.domain.model.SortOrder
 import fumi.day.literalplayer.ui.shared.MultiPlaylistSheet
-import fumi.day.literalplayer.ui.shared.TrackActionSheet
 import fumi.day.literalplayer.ui.player.PlayerViewModel
 import fumi.day.literalplayer.domain.model.Track
 import fumi.day.literalplayer.domain.model.displayAlbum
@@ -100,15 +99,11 @@ fun TrackListScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedFolder by viewModel.selectedFolder.collectAsState()
     val favoritesLists by viewModel.favoritesLists.collectAsState()
-    val trackAction by viewModel.trackAction.collectAsState()
-    val trackMemberOf by viewModel.trackMemberOf.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
     var showSortMenu by remember { mutableStateOf(false) }
     var showFolderMenu by remember { mutableStateOf(false) }
     var newListName by remember { mutableStateOf("") }
-    var showNewPlaylistDialog by remember { mutableStateOf(false) }
     var showMultiNewPlaylistDialog by remember { mutableStateOf(false) }
-    var confirmDeleteTrack by remember { mutableStateOf<Track?>(null) }
     var confirmDeleteSelected by remember { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
     val pendingDeleteSender by viewModel.pendingDeleteSender.collectAsState()
@@ -129,7 +124,6 @@ fun TrackListScreen(
     val playlistTracks by viewModel.playlistTracks.collectAsState()
     val multiPlaylistTracks by viewModel.multiPlaylistSheetTracks.collectAsState()
 
-    val currentPlaylistName = favoritesLists.find { it.id == selectedPlaylistId }?.name
 
     var selectedIds by remember(selectedTab) { mutableStateOf<Set<String>>(emptySet()) }
     val isSelecting = selectedIds.isNotEmpty()
@@ -249,7 +243,13 @@ fun TrackListScreen(
                             val tracks = sorted.filter { it.id in selectedIds }
                             viewModel.showMultiPlaylistSheet(tracks)
                         }) { Text("Playlist") }
-                        TextButton(onClick = { confirmDeleteTrack = null; confirmDeleteSelected = true }) {
+                        if (selectedTab == 3 && selectedPlaylistId != null) {
+                            TextButton(onClick = {
+                                selectedIds.forEach { viewModel.removeFromPlaylist(selectedPlaylistId!!, it) }
+                                selectedIds = emptySet()
+                            }) { Text("Remove") }
+                        }
+                        TextButton(onClick = { confirmDeleteSelected = true }) {
                             Text("Delete", color = Color(0xFFCF6679))
                         }
                         IconButton(onClick = { selectedIds = emptySet() }) {
@@ -298,7 +298,7 @@ fun TrackListScreen(
                     tracks = sorted,
                     onTrackClick = { albumTracks, track -> viewModel.updatePlaylist(albumTracks); onTrackClick(track) },
                     onToggle = ::toggleSelect,
-                    onAction = { track -> viewModel.showTrackAction(track) },
+                    onAction = { track -> selectedIds = setOf(track.id) },
                     onClearSelection = { selectedIds = emptySet() },
                     currentTrackId = playerState.track?.id,
                     selectedIds = selectedIds,
@@ -308,7 +308,7 @@ fun TrackListScreen(
                     tracks = sorted,
                     onTrackClick = { track -> viewModel.updatePlaylist(sorted); onTrackClick(track) },
                     onToggle = ::toggleSelect,
-                    onAction = { track -> viewModel.showTrackAction(track) },
+                    onAction = { track -> selectedIds = setOf(track.id) },
                     currentTrackId = playerState.track?.id,
                     selectedIds = selectedIds,
                     padding = padding,
@@ -323,7 +323,7 @@ fun TrackListScreen(
                     onDeselectPlaylist = { viewModel.selectPlaylist(null); selectedIds = emptySet() },
                     onTrackClick = { track -> viewModel.updatePlaylist(playlistTracks); onTrackClick(track) },
                     onToggle = ::toggleSelect,
-                    onAction = { track -> viewModel.showTrackAction(track, selectedPlaylistId, currentPlaylistName) },
+                    onAction = { track -> selectedIds = setOf(track.id) },
                     onDeletePlaylist = viewModel::deletePlaylist,
                     padding = padding,
                 )
@@ -337,67 +337,6 @@ fun TrackListScreen(
                 }
             }
         }
-    }
-
-    trackAction?.let { action ->
-        TrackActionSheet(
-            action = action,
-            trackMemberOf = trackMemberOf,
-            favoritesLists = favoritesLists,
-            onDismiss = viewModel::hideTrackAction,
-            onNewPlaylist = { showNewPlaylistDialog = true },
-            onTogglePlaylist = { viewModel.toggleTrackInPlaylist(it, action.track) },
-            onSelectMultiple = { selectedIds = setOf(action.track.id); viewModel.hideTrackAction() },
-            onDeleteFile = { viewModel.hideTrackAction(); confirmDeleteTrack = action.track },
-            onRemoveFromPlaylist = if (action.playlistId != null) {
-                { viewModel.removeFromPlaylist(action.playlistId, action.track.id); viewModel.hideTrackAction() }
-            } else null,
-        )
-    }
-
-    if (showNewPlaylistDialog) {
-        AlertDialog(
-            onDismissRequest = { showNewPlaylistDialog = false },
-            title = { Text("New playlist") },
-            text = {
-                OutlinedTextField(
-                    value = newListName,
-                    onValueChange = { newListName = it },
-                    placeholder = { Text("List name") },
-                    singleLine = true,
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (newListName.isNotBlank()) {
-                        trackAction?.let { viewModel.createPlaylistAndAdd(newListName.trim(), it.track) }
-                        newListName = ""
-                        showNewPlaylistDialog = false
-                        viewModel.hideTrackAction()
-                    }
-                }) { Text("Create") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showNewPlaylistDialog = false }) { Text("Cancel") }
-            }
-        )
-    }
-
-    confirmDeleteTrack?.let { track ->
-        AlertDialog(
-            onDismissRequest = { confirmDeleteTrack = null },
-            title = { Text("Delete file?") },
-            text = { Text(track.displayTitle) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteFile(track)
-                    confirmDeleteTrack = null
-                }) { Text("Delete", color = Color(0xFFCF6679)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDeleteTrack = null }) { Text("Cancel") }
-            }
-        )
     }
 
     if (confirmDeleteSelected) {

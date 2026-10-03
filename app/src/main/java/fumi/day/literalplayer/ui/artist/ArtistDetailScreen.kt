@@ -50,7 +50,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import fumi.day.literalplayer.domain.model.Track
 import fumi.day.literalplayer.domain.model.displayTitle
 import fumi.day.literalplayer.ui.shared.MultiPlaylistSheet
-import fumi.day.literalplayer.ui.shared.TrackActionSheet
 import fumi.day.literalplayer.domain.model.toDisplayDuration
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -65,14 +64,10 @@ fun ArtistDetailScreen(
     viewModel: ArtistDetailViewModel = hiltViewModel(),
 ) {
     val favoritesLists by viewModel.favoritesLists.collectAsState()
-    val trackAction by viewModel.trackAction.collectAsState()
-    val trackMemberOf by viewModel.trackMemberOf.collectAsState()
     val albumMap by viewModel.albumMap.collectAsState()
     val multiPlaylistTracks by viewModel.multiPlaylistSheetTracks.collectAsState()
     var newListName by remember { mutableStateOf("") }
-    var showNewPlaylistDialog by remember { mutableStateOf(false) }
     var showMultiNewPlaylistDialog by remember { mutableStateOf(false) }
-    var confirmDeleteTrack by remember { mutableStateOf<Track?>(null) }
     var confirmDeleteSelected by remember { mutableStateOf(false) }
     val pendingDeleteSender by viewModel.pendingDeleteSender.collectAsState()
     val deleteRequestLauncher = rememberLauncherForActivityResult(
@@ -174,7 +169,7 @@ fun ArtistDetailScreen(
                             .fillMaxWidth()
                             .combinedClickable(
                                 onClick = { if (isSelecting) toggleSelect(track) else { viewModel.updatePlaylist(tracks); onTrackClick(track) } },
-                                onLongClick = { if (isSelecting) toggleSelect(track) else viewModel.showTrackAction(track) },
+                                onLongClick = { if (isSelecting) toggleSelect(track) else selectedIds = setOf(track.id) },
                             )
                             .background(bg)
                             .padding(start = if (isSelecting) 16.dp else 32.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
@@ -203,54 +198,6 @@ fun ArtistDetailScreen(
                 }
             }
         }
-    }
-
-    trackAction?.let { action ->
-        TrackActionSheet(
-            action = action,
-            trackMemberOf = trackMemberOf,
-            favoritesLists = favoritesLists,
-            onDismiss = viewModel::hideTrackAction,
-            onNewPlaylist = { showNewPlaylistDialog = true },
-            onTogglePlaylist = { viewModel.toggleTrackInPlaylist(it, action.track) },
-            onSelectMultiple = { selectedIds = setOf(action.track.id); viewModel.hideTrackAction() },
-            onDeleteFile = { viewModel.hideTrackAction(); confirmDeleteTrack = action.track },
-        )
-    }
-
-    if (showNewPlaylistDialog) {
-        AlertDialog(
-            onDismissRequest = { showNewPlaylistDialog = false },
-            title = { Text("New playlist") },
-            text = {
-                OutlinedTextField(value = newListName, onValueChange = { newListName = it },
-                    placeholder = { Text("List name") }, singleLine = true)
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (newListName.isNotBlank()) {
-                        trackAction?.let { viewModel.createPlaylistAndAdd(newListName.trim(), it.track) }
-                        newListName = ""; showNewPlaylistDialog = false; viewModel.hideTrackAction()
-                    }
-                }) { Text("Create") }
-            },
-            dismissButton = { TextButton(onClick = { showNewPlaylistDialog = false }) { Text("Cancel") } }
-        )
-    }
-
-    confirmDeleteTrack?.let { track ->
-        AlertDialog(
-            onDismissRequest = { confirmDeleteTrack = null },
-            title = { Text("Delete file?") },
-            text = { Text(track.displayTitle) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteFile(track)
-                    confirmDeleteTrack = null
-                }) { Text("Delete", color = Color(0xFFCF6679)) }
-            },
-            dismissButton = { TextButton(onClick = { confirmDeleteTrack = null }) { Text("Cancel") } }
-        )
     }
 
     if (confirmDeleteSelected) {

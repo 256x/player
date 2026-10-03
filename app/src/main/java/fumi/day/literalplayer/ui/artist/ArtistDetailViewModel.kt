@@ -45,14 +45,8 @@ class ArtistDetailViewModel @Inject constructor(
     fun updatePlaylist(tracks: List<Track>) { trackRepository.setPlaylist(tracks) }
 
     private val playlistDelegate = PlaylistActionDelegate(favoritesRepository, viewModelScope)
-    val trackAction = playlistDelegate.trackAction
-    val trackMemberOf = playlistDelegate.trackMemberOf
     val multiPlaylistSheetTracks = playlistDelegate.multiPlaylistSheetTracks
 
-    fun showTrackAction(track: Track) = playlistDelegate.showTrackAction(track)
-    fun hideTrackAction() = playlistDelegate.hideTrackAction()
-    fun toggleTrackInPlaylist(listId: Long, track: Track) = playlistDelegate.toggleTrackInPlaylist(listId, track)
-    fun createPlaylistAndAdd(name: String, track: Track) = playlistDelegate.createPlaylistAndAdd(name, track)
     fun showMultiPlaylistSheet(tracks: List<Track>) = playlistDelegate.showMultiPlaylistSheet(tracks)
     fun hideMultiPlaylistSheet() = playlistDelegate.hideMultiPlaylistSheet()
     fun addAllToPlaylist(listId: Long, tracks: List<Track>) = playlistDelegate.addAllToPlaylist(listId, tracks)

@@ -23,66 +23,6 @@ import fumi.day.literalplayer.domain.model.displayTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TrackActionSheet(
-    action: TrackActionState,
-    trackMemberOf: Set<Long>,
-    favoritesLists: List<FavoritesList>,
-    onDismiss: () -> Unit,
-    onNewPlaylist: () -> Unit,
-    onTogglePlaylist: (Long) -> Unit,
-    onSelectMultiple: () -> Unit,
-    onDeleteFile: () -> Unit,
-    onRemoveFromPlaylist: (() -> Unit)? = null,
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(action.track.displayTitle, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(16.dp))
-            if (onRemoveFromPlaylist != null) {
-                HorizontalDivider()
-                TextButton(
-                    onClick = onRemoveFromPlaylist,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("✕ Remove from \"${action.playlistName}\"") }
-            }
-            HorizontalDivider()
-            TextButton(onClick = onNewPlaylist, modifier = Modifier.fillMaxWidth()) {
-                Text("+ New playlist")
-            }
-            HorizontalDivider()
-            favoritesLists.forEach { list ->
-                val isMember = list.id in trackMemberOf
-                TextButton(
-                    onClick = { onTogglePlaylist(list.id) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            if (isMember) "✓ " else "    ",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Text(list.name)
-                    }
-                }
-            }
-            HorizontalDivider()
-            TextButton(onClick = onSelectMultiple, modifier = Modifier.fillMaxWidth()) {
-                Text("Select multiple")
-            }
-            HorizontalDivider()
-            TextButton(onClick = onDeleteFile, modifier = Modifier.fillMaxWidth()) {
-                Text("Delete file", color = Color(0xFFCF6679))
-            }
-            Spacer(Modifier.height(32.dp))
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 fun MultiPlaylistSheet(
     trackCount: Int,
     favoritesLists: List<FavoritesList>,
