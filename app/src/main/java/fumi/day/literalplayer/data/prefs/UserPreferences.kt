@@ -24,6 +24,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 data class UserPrefs(
     val rootFolders: Set<String> = emptySet(),
     val sortOrder: SortOrder = SortOrder.NAME,
+    val sortAscending: Boolean = true,
     val shortSkipSec: Int = 10,
     val longSkipSec: Int = 30,
     val accentColorHex: String = "",
@@ -41,6 +42,7 @@ data class UserPrefs(
 class UserPreferences @Inject constructor(private val context: Context) {
     private val rootFoldersKey = stringSetPreferencesKey("root_folders")
     private val sortOrderKey = stringPreferencesKey("sort_order")
+    private val sortAscendingKey = booleanPreferencesKey("sort_ascending")
     private val shortSkipKey = intPreferencesKey("short_skip_sec")
     private val longSkipKey = intPreferencesKey("long_skip_sec")
     private val accentColorKey = stringPreferencesKey("accent_color")
@@ -57,6 +59,7 @@ class UserPreferences @Inject constructor(private val context: Context) {
         UserPrefs(
             rootFolders = (p[rootFoldersKey] ?: emptySet()).map { migrateSafPath(it) }.toSet(),
             sortOrder = SortOrder.entries.find { it.name == p[sortOrderKey] } ?: SortOrder.NAME,
+            sortAscending = p[sortAscendingKey] ?: true,
             shortSkipSec = p[shortSkipKey] ?: 10,
             longSkipSec = p[longSkipKey] ?: 30,
             accentColorHex = p[accentColorKey] ?: "",
@@ -89,6 +92,10 @@ class UserPreferences @Inject constructor(private val context: Context) {
 
     suspend fun setSortOrder(order: SortOrder) {
         context.dataStore.edit { it[sortOrderKey] = order.name }
+    }
+
+    suspend fun setSortAscending(ascending: Boolean) {
+        context.dataStore.edit { it[sortAscendingKey] = ascending }
     }
 
     suspend fun setShortSkipSec(sec: Int) {

@@ -165,4 +165,8 @@ class TrackListViewModel @Inject constructor(
     fun setSortOrder(order: SortOrder) {
         viewModelScope.launch { userPreferences.setSortOrder(order) }
     }
+
+    fun setSortAscending(ascending: Boolean) {
+        viewModelScope.launch { userPreferences.setSortAscending(ascending) }
+    }
 }

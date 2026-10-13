@@ -30,6 +30,9 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
@@ -132,9 +135,12 @@ fun TrackListScreen(
     }
 
     val sorted = when (prefs.sortOrder) {
-        SortOrder.NAME -> filteredTracks.sortedBy { it.displayTitle.lowercase() }
-        SortOrder.DATE -> filteredTracks.sortedByDescending { it.lastModified }
-        SortOrder.SIZE -> filteredTracks.sortedByDescending { it.fileSizeBytes }
+        SortOrder.NAME -> if (prefs.sortAscending) filteredTracks.sortedBy { it.displayTitle.lowercase() }
+                          else filteredTracks.sortedByDescending { it.displayTitle.lowercase() }
+        SortOrder.DATE -> if (prefs.sortAscending) filteredTracks.sortedBy { it.lastModified }
+                          else filteredTracks.sortedByDescending { it.lastModified }
+        SortOrder.SIZE -> if (prefs.sortAscending) filteredTracks.sortedBy { it.fileSizeBytes }
+                          else filteredTracks.sortedByDescending { it.fileSizeBytes }
     }
 
     Scaffold(
@@ -182,9 +188,24 @@ fun TrackListScreen(
                                 listOf(SortOrder.NAME, SortOrder.DATE, SortOrder.SIZE).forEach { order ->
                                     DropdownMenuItem(
                                         text = { Text(order.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                                        trailingIcon = if (prefs.sortOrder == order) {
+                                            { Icon(Icons.Default.Check, contentDescription = null) }
+                                        } else null,
                                         onClick = { viewModel.setSortOrder(order); showSortMenu = false }
                                     )
                                 }
+                                HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = { Text(if (prefs.sortAscending) "Ascending" else "Descending") },
+                                    trailingIcon = {
+                                        Icon(
+                                            if (prefs.sortAscending) Icons.Default.ArrowUpward
+                                            else Icons.Default.ArrowDownward,
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    onClick = { viewModel.setSortAscending(!prefs.sortAscending) }
+                                )
                             }
                         }
                         IconButton(onClick = onNavigateToSettings) {
