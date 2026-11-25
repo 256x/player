@@ -107,7 +107,8 @@ class PlayerViewModel @Inject constructor(
         controllerFuture?.addListener({
             controller = controllerFuture?.get()
             controller?.let { c ->
-                val mediaItems = playlist.map { MediaItem.fromUri(it.path) }
+                // パス文字列を直接 URI 解釈すると、ファイル名の "#"(フラグメント)や "?" で切れて再生できない
+                val mediaItems = playlist.map { MediaItem.fromUri(android.net.Uri.fromFile(java.io.File(it.path))) }
                 c.setMediaItems(mediaItems, startIndex, 0L)
                 c.setPlaybackSpeed(SPEED_PRESETS[1])
                 viewModelScope.launch {
